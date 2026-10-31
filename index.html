@@ -22,10 +22,18 @@
             <h1 class="game-title">HUSH</h1>
             <p class="subtitle">The loudest thing in the room is you.</p>
             <div class="menu-divider"></div>
-            <p class="instruction pulse">Click anywhere to begin</p>
+
+            <!-- Multiplayer Action Buttons -->
+            <div class="menu-action-buttons">
+                <button id="soloBtn" class="menu-btn primary">SOLO GAME</button>
+                <button id="createGroupBtn" class="menu-btn secondary">CREATE GROUP</button>
+                <button id="joinGroupBtn" class="menu-btn secondary">JOIN GROUP</button>
+            </div>
+
+            <p class="instruction pulse">Select mode or click anywhere for Solo</p>
             <div class="controls-hint">
-                <p>🎙️ <b>Microphone</b> detects voice &bull; 🎧 Headphones recommended</p>
-                <p>Key shortcuts: <b>V</b> (Hold to speak) &bull; <b>1</b> Whisper &bull; <b>2</b> Talk &bull; <b>3</b> Scream</p>
+                <p>🎙️ <b>Microphone</b> detects voice &bull; 🎧 Proximity 3D Voice enabled</p>
+                <p>Voice Keys: <b>T</b> Toggle Mic &bull; <b>V</b> (Hold to speak) &bull; <b>1</b> Whisper &bull; <b>2</b> Talk &bull; <b>3</b> Scream</p>
             </div>
             <div class="controls-pill-list">
                 <span class="pill"><b>WASD</b> Move</span>
@@ -34,9 +42,63 @@
                 <span class="pill"><b>Space</b> Hold Breath</span>
                 <span class="pill"><b>F</b> Flashlight</span>
                 <span class="pill"><b>E</b> Interact / Pick up</span>
+                <span class="pill"><b>G</b> Banish Ghost</span>
                 <span class="pill"><b>H</b> Hide</span>
+                <span class="pill"><b>T</b> Mic Mute</span>
                 <span class="pill"><b>M</b> Tactical Map</span>
                 <span class="pill"><b>Left Click</b> Throw Distraction</span>
+            </div>
+        </div>
+
+        <!-- Create Group Modal -->
+        <div id="groupModal" class="modal-overlay hidden">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <h2 class="modal-title">CO-OP GROUP LOBBY</h2>
+                    <span class="modal-tag">P2P PROXIMITY VOICE</span>
+                </div>
+                <p class="modal-subtitle">Share this room code with your friends to join:</p>
+                <div class="code-container">
+                    <span id="roomCodeDisplay" class="room-code">GENERATING...</span>
+                    <button id="copyCodeBtn" class="modal-btn small">COPY CODE</button>
+                </div>
+                <div class="lobby-members">
+                    <div class="lobby-count-row">
+                        <span>CONNECTED SQUAD:</span>
+                        <span class="badge"><span id="playerCountDisplay">1</span> / 5 PLAYERS</span>
+                    </div>
+                    <ul id="lobbyPlayersList" class="players-list">
+                        <li class="player-item host">👑 You (Host) - Ready</li>
+                    </ul>
+                </div>
+                <div class="lobby-info">
+                    <p>• <b>Proximity Audio:</b> Teammates sound quieter and muffled as they move further away</p>
+                    <p>• <b>Danger Line:</b> Holding &ge; 2 memory stones tightens the red line by 1/50 simultaneously</p>
+                    <p>• <b>Ghost Hunting:</b> Listener chases for up to 10 seconds before cooling off</p>
+                    <p>• <b>Banish Ghost:</b> Find the glowing sacred relic in the Hospital Wing to destroy the ghost [G]</p>
+                </div>
+                <div class="modal-buttons">
+                    <button id="startGroupGameBtn" class="modal-btn primary">START CO-OP GAME</button>
+                    <button id="cancelGroupBtn" class="modal-btn cancel">LEAVE LOBBY</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Join Group Modal -->
+        <div id="joinModal" class="modal-overlay hidden">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <h2 class="modal-title">JOIN SQUAD GROUP</h2>
+                </div>
+                <p class="modal-subtitle">Enter the room code shared by your friend:</p>
+                <div class="join-input-container">
+                    <input type="text" id="joinCodeInput" placeholder="HUSH-XXXX" maxlength="12" autocomplete="off" spellcheck="false">
+                </div>
+                <p id="joinStatus" class="modal-status"></p>
+                <div class="modal-buttons">
+                    <button id="confirmJoinBtn" class="modal-btn primary">CONNECT TO GROUP</button>
+                    <button id="cancelJoinBtn" class="modal-btn cancel">BACK</button>
+                </div>
             </div>
         </div>
 
@@ -91,11 +153,13 @@
     </div>
 
     <!-- Scripts (order matters) -->
+    <script src="js/peerjs.min.js"></script>
     <script src="js/constants.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/map.js"></script>
     <script src="js/audio.js"></script>
     <script src="js/entities.js"></script>
+    <script src="js/network.js"></script>
     <script src="js/renderer.js"></script>
     <script src="js/game.js"></script>
 </body>

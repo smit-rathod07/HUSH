@@ -81,6 +81,7 @@ class GameMap {
         this.rooms = [];          // Array of {x, y, w, h, type, name} objects (tile coords)
         this.items = [];          // Array of {x, y, type, id, collected, data} objects (pixel coords)
         this.stones = [];         // Array of {x, y, collected, id} objects (pixel coords)
+        this.relic = null;        // Banishment Relic {x, y, collected, id}
         this.hidingSpots = [];    // Array of {x, y, occupied} objects (pixel coords)
         this.patrolPoints = [];   // Array of {x, y} for Listener patrol route (pixel coords)
         this.startPos = { x: 0, y: 0 };   // Player start position in pixel coords
@@ -101,6 +102,7 @@ class GameMap {
         this.rooms = [];
         this.items = [];
         this.stones = [];
+        this.relic = null;
         this.hidingSpots = [];
         this.patrolPoints = [];
         this.pathCache.clear();
@@ -614,6 +616,12 @@ class GameMap {
 
         // Quiet Way Alcoves
         this._addItem(52, 41, ITEM_TYPE.BATTERY, { name: 'Generator Battery', charge: 45 });
+
+        // Banishment Relic - Hidden in Hospital Wing Altar (x:50, y:25)
+        this.relic = this._addItem(50, 25, ITEM_TYPE.BANISH_RELIC, {
+            name: 'Banishment Relic',
+            desc: 'Press [G] to blast and banish the Listener into dust!'
+        });
     }
 
     // ------------------------------------------------------------
@@ -697,14 +705,16 @@ class GameMap {
     }
 
     _addItem(tx, ty, type, data = {}) {
-        this.items.push({
+        const item = {
             x: tileToPixel(tx),
             y: tileToPixel(ty),
             type: type,
             id: this._itemIdCounter++,
             collected: false,
             data: data
-        });
+        };
+        this.items.push(item);
+        return item;
     }
 
     // ------------------------------------------------------------

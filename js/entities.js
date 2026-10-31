@@ -106,7 +106,8 @@ class Player {
         this.stonesCollected = 0;
         this.stonesPlaced = 0;                           // placed in exit machine
         this.keys = [];                                  // color-coded keys collected
-        
+        this.hasRelic = false;                           // Banishment Relic flag
+
         // State
         this.alive = true;
         this.escaped = false;
@@ -584,6 +585,15 @@ class Player {
             }
             return true;
         }
+
+        // Banishment Relic
+        if (item.type === ITEM_TYPE.BANISH_RELIC || item.type === 'banish_relic') {
+            this.hasRelic = true;
+            if (this.inventory.length < this.maxInventory) {
+                this.inventory.push(item);
+            }
+            return true;
+        }
         
         // General inventory addition
         if (this.inventory.length < this.maxInventory) {
@@ -592,6 +602,82 @@ class Player {
         }
         
         return false;
+    }
+
+    /**
+     * Use the Banishment Relic to destroy/banish the Listener.
+     * @param {Listener} listener 
+     * @param {Object} network 
+     * @param {Object} renderer 
+     * @returns {boolean} Whether the relic was used
+     */
+    useRelic(listener, network, renderer) {
+        if (!this.hasRelic || !this.alive || this.isHiding) return false;
+        this.hasRelic = false;
+
+        // Remove from inventory
+        const idx = this.inventory.findIndex(it => it && (it.type === ITEM_TYPE.BANISH_RELIC || it.type === 'banish_relic'));
+        if (idx !== -1) this.inventory.splice(idx, 1);
+
+        if (typeof window !== 'undefined' && window.audioManager) {
+            window.audioManager.playSound('ghost_banish');
+        }
+
+        if (renderer && renderer.shakeScreen) {
+            renderer.shakeScreen(16);
+        }
+
+        // Radiating holy blast particles
+        if (renderer && renderer.addParticle) {
+            for (let i = 0; i < 45; i++) {
+                const ang = Math.random() * Math.PI * 2;
+                const spd = randomFloat(70, 260);
+                renderer.addParticle(
+                    this.x, this.y,
+                    Math.cos(ang) * spd, Math.sin(ang) * spd,
+                    randomFloat(1.0, 2.2),
+                    randomFloat(4, 8),
+                    '#00ffee',
+                    'spark'
+                );
+            }
+        }
+
+        let ghostKilled = false;
+        if (listener && !listener.isDead) {
+            const d = dist(this.x, this.y, listener.x, listener.y);
+            // Holy banish range (up to 380px)
+            if (d <= 380) {
+                listener.banish();
+                ghostKilled = true;
+                if (renderer && renderer.addParticle) {
+                    for (let i = 0; i < 70; i++) {
+                        const ang = Math.random() * Math.PI * 2;
+                        const spd = randomFloat(40, 200);
+                        renderer.addParticle(
+                            listener.x, listener.y,
+                            Math.cos(ang) * spd, Math.sin(ang) * spd,
+                            randomFloat(1.2, 3.0),
+                            randomFloat(5, 12),
+                            '#ffffff',
+                            'smoke'
+                        );
+                    }
+                }
+            }
+        }
+
+        // Broadcast to multiplayer peers
+        if (network && typeof network.sendAction === 'function') {
+            network.sendAction({
+                type: 'RELIC_USED',
+                x: this.x,
+                y: this.y,
+                ghostKilled: ghostKilled
+            });
+        }
+
+        return true;
     }
     
     /**
@@ -781,6 +867,12 @@ class Listener {
         this.headTiltTarget = 0;
         this.visible = true;                             // for spawn/despawn animations
         
+        // Ghost lifecycle state
+        this.alive = true;
+        this.isDead = false;
+        this.isBanished = false;
+        this.deathTimer = 0;
+
         // Timers & state tracking
         this.patrolPauseTimer = 0;
         this.investigateWaitTimer = 0;
@@ -789,6 +881,22 @@ class Listener {
         this.huntPathTimer = 0;
         this.lastMimic = null;
         this.currentMap = null;
+    }
+
+    /**
+     * Banish and destroy the Listener
+     */
+    banish() {
+        if (this.isDead) return;
+        this.alive = false;
+        this.isDead = true;
+        this.isBanished = true;
+        this.huntTimer = 0;
+        this.state = LISTENER_STATE.COOL;
+        if (typeof window !== 'undefined' && window.audioManager) {
+            window.audioManager.playSound('ghost_banish');
+            window.audioManager.stopChase();
+        }
     }
     
     /**
@@ -801,6 +909,8 @@ class Listener {
      * @param {number} noiseY Sound source Y
      */
     update(dt, map, player, noiseLevel, noiseX, noiseY) {
+        if (this.isDead) return;
+
         this.currentMap = map;
         const safeDt = Math.min(dt || 0.016, 0.1);
         this.stateTimer += safeDt;
@@ -1350,7 +1460,7 @@ class Listener {
      * @param {CanvasRenderingContext2D} ctx 
      */
     render(ctx) {
-        if (!ctx || !this.visible) return;
+        if (!ctx || !this.visible || this.isDead) return;
         
         ctx.save();
         ctx.translate(this.x, this.y);

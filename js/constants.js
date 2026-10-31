@@ -40,6 +40,7 @@ const NOISE_THRESHOLDS = {
     WHISPER: 0.08,
     TALK: 0.22,
     LOUD: 0.30,
+    BASE_RED_LINE: 0.36,
     RED_LINE: 0.36,   // Reduced from 0.60 to 0.36
     SHOUT: 0.48       // Reduced from 0.80 to 0.48
 };
@@ -81,8 +82,11 @@ const COLORS = {
     STONE_GLOW: '#ffaa33',
     STONE_GLOW_FAINT: 'rgba(255, 170, 51, 0.25)',
     EXIT_GLOW: '#33ffaa',
+    RELIC: '#00ffee',
+    RELIC_GLOW: 'rgba(0, 255, 238, 0.85)',
     PLAYER: '#7799cc',
     PLAYER_OUTLINE: '#99bbee',
+    PEER_PLAYERS: ['#33ddaa', '#ffaa44', '#dd66ff', '#44aaff'],
     LISTENER_BODY: '#f0e0d0',
     LISTENER_EYE: '#ff2222',
     LISTENER_EYE_GLOW: 'rgba(255, 34, 34, 0.4)',
@@ -117,7 +121,7 @@ const LISTENER_HUNT_SPEED = 140;
 const LISTENER_INVESTIGATE_SPEED = 80;
 const LISTENER_HEARING_RANGE = 600;      // pixels
 const LISTENER_NEAR_BLIND_RANGE = 80;    // pixels - can barely see this close
-const LISTENER_HUNT_DURATION = 4000;     // ms (60-120 seconds in design, shortened for gameplay)
+const LISTENER_HUNT_DURATION = 10000;    // 10 seconds (exact user requirement: run behind player for up to 10 seconds then stop)
 const LISTENER_COOL_DURATION = 5000;     // ms
 const LISTENER_INVESTIGATE_PATIENCE = 6000; // ms before giving up
 
@@ -136,6 +140,13 @@ const TOTAL_STONES = 3;
 const STONE_HUM_BASE = 0.02;      // base noise from carrying a stone
 const STONE_HUM_PER_STONE = 0.03; // additional noise per extra stone
 
+// Danger line reduction by diamonds/stones (1/50 per qualifying player)
+const DIAMOND_REDUCTION_FRACTION = 1 / 50; // 0.02 reduction fraction
+
+// Proximity Voice Chat Settings
+const PROXIMITY_MIN_DISTANCE = 120; // pixels: full volume
+const PROXIMITY_MAX_DISTANCE = 680; // pixels: zero volume / silence
+
 // Item types
 const ITEM_TYPE = {
     BATTERY: 0,
@@ -143,5 +154,6 @@ const ITEM_TYPE = {
     THROWABLE: 2,
     WALKIE_TALKIE: 3,
     TAPE_RECORDER: 4,
-    DIARY_PAGE: 5
+    DIARY_PAGE: 5,
+    BANISH_RELIC: 6
 };

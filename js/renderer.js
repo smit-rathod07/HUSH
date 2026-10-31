@@ -178,6 +178,10 @@ class Renderer {
             this.drawPlayer(player);
         }
         
+        if (this.network) {
+            this.drawRemotePlayers(this.network);
+        }
+        
         this.ctx.restore();
         
         // 4. Fog of War & Flashlight (cut out visibility)
@@ -846,6 +850,104 @@ class Renderer {
         
         ctx.restore();
     }
+
+    // Draw connected remote multiplayer friends
+    drawRemotePlayers(network) {
+        if (!network || !network.remotePlayers) return;
+        const ctx = this.ctx;
+        const peerColors = COLORS.PEER_PLAYERS || ['#33ddaa', '#ffaa44', '#dd66ff', '#44aaff'];
+
+        for (const rp of Object.values(network.remotePlayers)) {
+            if (!rp.x && !rp.y) continue;
+            ctx.save();
+
+            if (rp.isHiding) {
+                ctx.globalAlpha = 0.45;
+            }
+
+            const pCol = peerColors[(rp.colorIndex || 1) % peerColors.length];
+            const px = rp.x;
+            const py = rp.y;
+            const r = 10;
+
+            // Flashlight beam for remote peer
+            if (rp.flashlightOn) {
+                const fAngle = rp.flashlightAngle !== undefined ? rp.flashlightAngle : (rp.angle || 0);
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                const fGrad = ctx.createRadialGradient(px, py, 4, px, py, FLASHLIGHT_RANGE * 0.85);
+                fGrad.addColorStop(0.0, 'rgba(255, 240, 200, 0.14)');
+                fGrad.addColorStop(0.8, 'rgba(255, 220, 160, 0.03)');
+                fGrad.addColorStop(1.0, 'rgba(255, 220, 160, 0.0)');
+                ctx.fillStyle = fGrad;
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+                ctx.arc(px, py, FLASHLIGHT_RANGE * 0.85, fAngle - FLASHLIGHT_ANGLE, fAngle + FLASHLIGHT_ANGLE);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Glowing cyan aura if peer carries the Banishment Relic
+            if (rp.hasRelic) {
+                const auraPulse = Math.sin(this.gameTime * 5) * 0.3 + 0.7;
+                ctx.fillStyle = `rgba(0, 255, 238, ${auraPulse * 0.35})`;
+                ctx.beginPath();
+                ctx.arc(px, py, 18, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Peer body
+            ctx.fillStyle = pCol;
+            ctx.beginPath();
+            ctx.arc(px, py, r, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Facing pointer
+            const ang = rp.angle || 0;
+            const tipX = px + Math.cos(ang) * (r + 4);
+            const tipY = py + Math.sin(ang) * (r + 4);
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(tipX, tipY, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Peer Name Badge
+            ctx.font = 'bold 9px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            const nameText = rp.name || 'Friend';
+            const nw = ctx.measureText(nameText).width;
+
+            ctx.fillStyle = 'rgba(7, 10, 18, 0.85)';
+            ctx.fillRect(px - nw / 2 - 4, py - 18, nw + 8, 13);
+            ctx.strokeStyle = pCol;
+            ctx.lineWidth = 0.8;
+            ctx.strokeRect(px - nw / 2 - 4, py - 18, nw + 8, 13);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(nameText, px, py - 7);
+
+            // Voice Activity Wave Bubble (when friend is talking)
+            if (rp.isTalking) {
+                ctx.font = '10px monospace';
+                ctx.fillText('🎙️', px + nw / 2 + 8, py - 7);
+            }
+
+            // Diamond badge if carrying >= 2 stones
+            if (rp.stonesCollected >= 2) {
+                ctx.font = '9px monospace';
+                ctx.fillStyle = '#ffcc66';
+                ctx.fillText('💎x' + rp.stonesCollected, px, py - 21);
+            }
+
+            ctx.restore();
+        }
+    }
     
     // Draw the Listener monster
     drawListener(listener) {
@@ -1069,6 +1171,32 @@ class Renderer {
                 ctx.strokeStyle = '#4d321d';
                 ctx.lineWidth = 1;
                 ctx.stroke();
+            } else if (type === ITEM_TYPE.BANISH_RELIC || type === 'banish_relic') {
+                // Banishment Relic: Radiant sacred star / cross with glowing pulsing aura
+                const rPulse = Math.sin(this.gameTime * 5) * 0.25 + 0.75;
+                ctx.fillStyle = `rgba(0, 255, 238, ${rPulse * 0.4})`;
+                ctx.beginPath();
+                ctx.arc(0, 0, 16 * rPulse, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Core radiant star
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = '#00ffee';
+                ctx.lineWidth = 1.8;
+                ctx.beginPath();
+                ctx.moveTo(0, -9); ctx.lineTo(2.5, -2.5);
+                ctx.lineTo(9, 0); ctx.lineTo(2.5, 2.5);
+                ctx.lineTo(0, 9); ctx.lineTo(-2.5, 2.5);
+                ctx.lineTo(-9, 0); ctx.lineTo(-2.5, -2.5);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Inner core jewel
+                ctx.fillStyle = '#00ffee';
+                ctx.beginPath();
+                ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+                ctx.fill();
             } else {
                 // Generic item token / diary page
                 ctx.fillStyle = '#dcdcdc';
@@ -1369,9 +1497,109 @@ class Renderer {
         this.drawMinimap(this.map, player, listener);
         this.drawStoneCounter(player);
 
+        if (this.network) {
+            this.drawMultiplayerHUD(this.network, player);
+        }
+
+        if (player && player.hasRelic) {
+            this.drawRelicPrompt();
+        }
+
         if (this.showFullMap) {
             this.drawFullMap(this.map, player, listener);
         }
+    }
+
+    // Draw multiplayer group HUD in top right
+    drawMultiplayerHUD(network, player) {
+        if (!network || !network.roomCode) return;
+        const ctx = this.ctx;
+        ctx.save();
+
+        const boxX = this.width - 190;
+        const boxY = 20;
+        const boxW = 170;
+        const players = network.getPlayerList();
+        const boxH = 34 + players.length * 18;
+
+        // Panel background
+        ctx.fillStyle = 'rgba(7, 10, 18, 0.88)';
+        this.drawRoundedRect(ctx, boxX, boxY, boxW, boxH, 6, true, false);
+
+        ctx.strokeStyle = 'rgba(70, 110, 170, 0.45)';
+        ctx.lineWidth = 1;
+        this.drawRoundedRect(ctx, boxX, boxY, boxW, boxH, 6, false, true);
+
+        // Group Room Code Header
+        ctx.font = 'bold 10px monospace';
+        ctx.fillStyle = '#65b2f0';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`ROOM: ${network.roomCode}`, boxX + 10, boxY + 8);
+
+        // Mic status badge on right
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'right';
+        ctx.fillStyle = network.micMuted ? '#ff5555' : '#33ffaa';
+        ctx.fillText(network.micMuted ? '🔇 MUTED [V]' : '🎙️ LIVE [V]', boxX + boxW - 10, boxY + 8);
+
+        // Thin divider
+        ctx.strokeStyle = 'rgba(70, 110, 170, 0.25)';
+        ctx.beginPath();
+        ctx.moveTo(boxX + 6, boxY + 24);
+        ctx.lineTo(boxX + boxW - 6, boxY + 24);
+        ctx.stroke();
+
+        // Player entries
+        for (let i = 0; i < players.length; i++) {
+            const p = players[i];
+            const py = boxY + 28 + i * 18;
+            ctx.font = '9px monospace';
+            ctx.textAlign = 'left';
+            ctx.fillStyle = p.isHost ? '#eedd44' : '#ccddee';
+
+            const dot = p.isTalking ? '🔊 ' : '● ';
+            let pLabel = dot + p.name;
+            if (pLabel.length > 15) pLabel = pLabel.substr(0, 14) + '…';
+            ctx.fillText(pLabel, boxX + 8, py);
+
+            // Diamond count
+            ctx.textAlign = 'right';
+            const stones = (p.id === 'local' || p.id === network.peerId)
+                ? (player ? player.stonesCollected : 0)
+                : (p.stonesCollected || 0);
+            ctx.fillStyle = stones >= 2 ? '#ffaa33' : '#778899';
+            ctx.fillText(`💎${stones}`, boxX + boxW - 8, py);
+        }
+
+        ctx.restore();
+    }
+
+    // Draw on-screen notification that Banishment Relic is ready
+    drawRelicPrompt() {
+        const ctx = this.ctx;
+        ctx.save();
+        const pulse = Math.sin(this.gameTime * 7) * 0.2 + 0.8;
+        const bannerW = 320;
+        const bannerH = 26;
+        const bannerX = Math.round((this.width - bannerW) / 2);
+        const bannerY = this.height - 104;
+
+        ctx.fillStyle = 'rgba(5, 20, 28, 0.88)';
+        this.drawRoundedRect(ctx, bannerX, bannerY, bannerW, bannerH, 6, true, false);
+
+        ctx.strokeStyle = `rgba(0, 255, 238, ${pulse})`;
+        ctx.lineWidth = 1.5;
+        this.drawRoundedRect(ctx, bannerX, bannerY, bannerW, bannerH, 6, false, true);
+
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#00ffee';
+        ctx.shadowColor = '#00ffee';
+        ctx.shadowBlur = 8 * pulse;
+        ctx.fillText('✦ BANISHMENT RELIC READY - PRESS [G] TO CAST ✦', this.width / 2, bannerY + bannerH / 2);
+        ctx.restore();
     }
     
     // Draw the noise bar (TOP CENTER)
@@ -1421,10 +1649,17 @@ class Renderer {
 
         // Small clear danger label above the line
         ctx.font = 'bold 8px monospace';
-        ctx.fillStyle = COLORS.RED_LINE_COLOR;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText('▼ DANGER LINE', redLineX, barY - 3);
+        if (redLinePct < 0.358) {
+            ctx.fillStyle = '#ff8833';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(`▼ DANGER LINE (${Math.round(redLinePct * 100)}% 💎 -1/50)`, redLineX, barY - 3);
+        } else {
+            ctx.fillStyle = COLORS.RED_LINE_COLOR;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText('▼ DANGER LINE', redLineX, barY - 3);
+        }
         
         // Bar pulses/glows when noise is above the red line
         if (clampedNoise >= redLinePct) {
@@ -1527,6 +1762,20 @@ class Renderer {
                     ctx.beginPath();
                     ctx.arc(0, 0, 4.5, 0, Math.PI * 2);
                     ctx.fill();
+                } else if (type === ITEM_TYPE.BANISH_RELIC || type === 'banish_relic') {
+                    // Sacred glowing Banishment Relic
+                    ctx.fillStyle = '#00ffee';
+                    ctx.shadowColor = '#00ffee';
+                    ctx.shadowBlur = 8;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = '#061324';
+                    ctx.font = 'bold 8px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('✦', 0, 0);
                 } else {
                     ctx.fillStyle = '#ccddee';
                     ctx.fillRect(-5, -6, 10, 12);
@@ -1758,6 +2007,31 @@ class Renderer {
             ctx.fillRect(ex - 2, ey - 2, 4, 4);
         }
 
+        // Banishment Relic on radar (pulsing cyan star)
+        if (map.relic && !map.relic.collected) {
+            const rx = mapAreaX + (map.relic.x / TILE_SIZE) * scaleX;
+            const ry = mapAreaY + (map.relic.y / TILE_SIZE) * scaleY;
+            const rPulse = Math.sin(this.gameTime * 6) * 0.3 + 0.7;
+            ctx.fillStyle = `rgba(0, 255, 238, ${rPulse})`;
+            ctx.beginPath();
+            ctx.arc(rx, ry, 3.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Remote multiplayer friends on radar
+        if (this.network && this.network.remotePlayers) {
+            const peerCols = COLORS.PEER_PLAYERS || ['#33ddaa', '#ffaa44', '#dd66ff'];
+            for (const rp of Object.values(this.network.remotePlayers)) {
+                if (!rp.x && !rp.y) continue;
+                const rpx = mapAreaX + (rp.x / TILE_SIZE) * scaleX;
+                const rpy = mapAreaY + (rp.y / TILE_SIZE) * scaleY;
+                ctx.fillStyle = peerCols[(rp.colorIndex || 1) % peerCols.length];
+                ctx.beginPath();
+                ctx.arc(rpx, rpy, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
         // Player icon on radar with heading cone
         const ptx = (player.x / TILE_SIZE) * scaleX;
         const pty = (player.y / TILE_SIZE) * scaleY;
@@ -1986,6 +2260,43 @@ class Renderer {
             ctx.fillText('EXIT PORTAL', ex, ey - 12);
         }
 
+        // Banishment Relic on blueprint
+        if (map.relic && !map.relic.collected) {
+            const rx = ox + (map.relic.x / TILE_SIZE) * scale;
+            const ry = oy + (map.relic.y / TILE_SIZE) * scale;
+            ctx.fillStyle = '#00ffee';
+            ctx.shadowColor = '#00ffee';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(rx, ry, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            ctx.font = 'bold 9px monospace';
+            ctx.fillStyle = '#00ffee';
+            ctx.fillText('✦ BANISHMENT RELIC', rx, ry - 11);
+        }
+
+        // Remote multiplayer friends on blueprint
+        if (this.network && this.network.remotePlayers) {
+            const peerCols = COLORS.PEER_PLAYERS || ['#33ddaa', '#ffaa44', '#dd66ff'];
+            for (const rp of Object.values(this.network.remotePlayers)) {
+                if (!rp.x && !rp.y) continue;
+                const rpx = ox + (rp.x / TILE_SIZE) * scale;
+                const rpy = oy + (rp.y / TILE_SIZE) * scale;
+                const pCol = peerCols[(rp.colorIndex || 1) % peerCols.length];
+
+                ctx.fillStyle = pCol;
+                ctx.beginPath();
+                ctx.arc(rpx, rpy, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.font = 'bold 9px monospace';
+                ctx.fillStyle = pCol;
+                ctx.fillText(rp.name || 'Friend', rpx, rpy + 12);
+            }
+        }
+
         // Player pin
         const ppx = ox + (player.x / TILE_SIZE) * scale;
         const ppy = oy + (player.y / TILE_SIZE) * scale;
@@ -2014,11 +2325,11 @@ class Renderer {
 
         // Legend box on bottom
         const legY = this.height - 36;
-        ctx.font = '11px monospace';
+        ctx.font = '10px monospace';
         ctx.textAlign = 'center';
         ctx.fillStyle = '#8ca3c7';
         ctx.fillText(
-            'LEGEND:  ● YOU (Cyan)  |  ◆ STONES (Gold)  |  ■ HIDING SPOTS (Green)  |  --- THE SHORT WAY (Red Patrol)  |  ⚑ EXIT (Mint)',
+            'LEGEND:  ● YOU (Cyan)  |  ● FRIENDS (Colors)  |  ✦ BANISH RELIC (Aqua)  |  ◆ STONES (Gold)  |  ■ HIDING SPOTS (Green)  |  --- THE SHORT WAY (Patrol)  |  ⚑ EXIT',
             this.width / 2, legY
         );
 

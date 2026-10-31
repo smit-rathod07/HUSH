@@ -68,6 +68,9 @@ class Game {
         // Game stats
         this.playTime = 0;
         this.deathCount = 0;
+
+        // Multiplayer Networking
+        this.network = null;
     }
 
     async init() {
@@ -82,8 +85,18 @@ class Game {
         this.audio = new AudioManager();
         window.audioManager = this.audio;
 
+        // Create network manager
+        if (typeof NetworkManager !== 'undefined') {
+            this.network = new NetworkManager();
+            this.renderer.network = this.network;
+            this.setupNetworkCallbacks();
+        }
+
         // Set up input handlers
         this.setupInput();
+
+        // Set up multiplayer lobby UI
+        this.setupMultiplayerUI();
 
         // Listen for listener mimic events
         window.addEventListener('listenerMimic', (e) => {
@@ -129,10 +142,195 @@ class Game {
         window.addEventListener('mouseup', (e) => this.onMouseUp(e));
 
         // Click to start
-        window.addEventListener('click', () => this.onClick());
+        window.addEventListener('click', (e) => this.onClick(e));
 
         // Prevent context menu
         window.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
+
+    setupNetworkCallbacks() {
+        if (!this.network) return;
+
+        this.network.onEventCallback = (event) => {
+            if (event.type === 'RELIC_USED') {
+                if (this.listener) this.listener.banish();
+                if (this.audio) this.audio.playSound('ghost_banish');
+                if (this.renderer) this.renderer.shakeScreen(10);
+                this.showHint('✦ A teammate banished the Listener into oblivion! ✦');
+            } else if (event.type === 'PLAYER_ESCAPED') {
+                this.showHint(`✦ ${event.senderName || 'A teammate'} has escaped the building! ✦`);
+                if (this.audio) this.audio.playSound('stone_pickup');
+            } else if (event.type === 'STONE_COLLECTED') {
+                this.showHint(`✦ ${event.senderName || 'A teammate'} collected a memory stone! ✦`);
+                if (this.audio) this.audio.playSound('stone_pickup');
+            } else if (event.type === 'GAME_START') {
+                if (this.state === GAME_STATE.MENU || this.state === GAME_STATE.CALIBRATING) {
+                    this.startGame();
+                }
+            }
+        };
+
+        this.network.onPeerChangeCallback = (peers) => {
+            this.updateLobbyPlayerList(peers);
+        };
+    }
+
+    setupMultiplayerUI() {
+        const soloBtn = document.getElementById('soloBtn');
+        const createGroupBtn = document.getElementById('createGroupBtn');
+        const joinGroupBtn = document.getElementById('joinGroupBtn');
+        const groupModal = document.getElementById('groupModal');
+        const joinModal = document.getElementById('joinModal');
+        const copyCodeBtn = document.getElementById('copyCodeBtn');
+        const startGroupGameBtn = document.getElementById('startGroupGameBtn');
+        const cancelGroupBtn = document.getElementById('cancelGroupBtn');
+        const confirmJoinBtn = document.getElementById('confirmJoinBtn');
+        const cancelJoinBtn = document.getElementById('cancelJoinBtn');
+        const joinCodeInput = document.getElementById('joinCodeInput');
+
+        if (soloBtn) {
+            soloBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.startCalibration();
+            });
+        }
+
+        if (createGroupBtn) {
+            createGroupBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (groupModal) groupModal.classList.remove('hidden');
+                if (this.network) {
+                    this.network.createGroup(null, (roomCode) => {
+                        const codeDisplay = document.getElementById('roomCodeDisplay');
+                        if (codeDisplay) codeDisplay.textContent = roomCode;
+                        this.updateLobbyPlayerList(this.network.peers);
+                    });
+                }
+            });
+        }
+
+        if (copyCodeBtn) {
+            copyCodeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const code = this.network ? this.network.roomCode : '';
+                if (code && navigator.clipboard) {
+                    navigator.clipboard.writeText(code).then(() => {
+                        copyCodeBtn.textContent = 'COPIED!';
+                        setTimeout(() => { copyCodeBtn.textContent = 'COPY'; }, 2000);
+                    }).catch(() => {
+                        copyCodeBtn.textContent = 'COPIED!';
+                    });
+                }
+            });
+        }
+
+        if (startGroupGameBtn) {
+            startGroupGameBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (groupModal) groupModal.classList.add('hidden');
+                if (this.network) {
+                    this.network.broadcastAction('GAME_START', {});
+                }
+                this.startCalibration();
+            });
+        }
+
+        if (cancelGroupBtn) {
+            cancelGroupBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (groupModal) groupModal.classList.add('hidden');
+            });
+        }
+
+        if (joinGroupBtn) {
+            joinGroupBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (joinModal) {
+                    joinModal.classList.remove('hidden');
+                    const status = document.getElementById('joinStatus');
+                    if (status) { status.textContent = ''; status.className = 'modal-status'; }
+                    if (joinCodeInput) { joinCodeInput.value = ''; joinCodeInput.focus(); }
+                }
+            });
+        }
+
+        if (confirmJoinBtn) {
+            confirmJoinBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const code = joinCodeInput ? joinCodeInput.value.trim().toUpperCase() : '';
+                const status = document.getElementById('joinStatus');
+                if (!code) {
+                    if (status) { status.textContent = 'Please enter a valid group code!'; status.className = 'modal-status error'; }
+                    return;
+                }
+                if (status) { status.textContent = 'Connecting to room ' + code + '...'; status.className = 'modal-status pending'; }
+                if (this.network) {
+                    this.network.joinGroup(code, () => {
+                        if (status) {
+                            status.textContent = 'Connected! Waiting for host to launch the game...';
+                            status.className = 'modal-status success';
+                        }
+                    }, (err) => {
+                        if (status) {
+                            status.textContent = 'Failed to connect: ' + (err || 'Unknown error');
+                            status.className = 'modal-status error';
+                        }
+                    });
+                }
+            });
+        }
+
+        if (cancelJoinBtn) {
+            cancelJoinBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (joinModal) joinModal.classList.add('hidden');
+            });
+        }
+    }
+
+    updateLobbyPlayerList(peers) {
+        const list = document.getElementById('lobbyPlayersList');
+        const countDisplay = document.getElementById('playerCountDisplay');
+        if (!list) return;
+
+        const count = 1 + (peers ? peers.size : 0);
+        if (countDisplay) countDisplay.textContent = count;
+
+        list.innerHTML = `<li class="player-item host">👑 You (${this.network ? this.network.localPlayerName : 'Host'}) - Ready</li>`;
+        if (peers) {
+            for (const [peerId, peer] of peers) {
+                const li = document.createElement('li');
+                li.className = 'player-item';
+                li.innerHTML = `👤 ${peer.name || 'Friend (' + peerId.slice(-4) + ')'} - Joined`;
+                list.appendChild(li);
+            }
+        }
+    }
+
+    handleBanishRelic() {
+        if (!this.player || !this.player.alive) return;
+        if (!this.player.hasRelic) {
+            this.showHint("Find the Banishment Relic in the Hospital Wing to destroy the ghost!");
+            return;
+        }
+        if (!this.listener || this.listener.isDead) {
+            this.showHint("The Listener has already been destroyed!");
+            return;
+        }
+        const banished = this.player.useRelic(this.listener, this.network, this.renderer);
+        if (banished) {
+            if (this.audio) this.audio.playSound('ghost_banish');
+            this.showHint("✦ YOU BANISHED THE LISTENER INTO OBLIVION! ✦");
+        } else {
+            this.showHint("The Listener is too far away! Move closer (within 380px) to cast!");
+        }
+    }
+
+    toggleVoiceMic() {
+        if (this.network) {
+            const isMuted = this.network.toggleMic();
+            this.showHint(isMuted ? "🔇 Voice Microphone Muted [Press T to Unmute]" : "🎙️ Voice Microphone Live [Press T to Mute]");
+        }
     }
 
     onKeyDown(e) {
@@ -150,6 +348,12 @@ class Game {
             case 'KeyV':
                 this.input.talk = true;
                 if (this.audio && !this.audio.micActive) this.audio.simulateMicLevel(0.40);
+                break;
+            case 'KeyT':
+                this.toggleVoiceMic();
+                break;
+            case 'KeyG':
+                this.handleBanishRelic();
                 break;
             case 'Digit1': // Simulate Whisper
                 if (this.audio) this.audio.simulateMicLevel(0.12);
@@ -225,7 +429,10 @@ class Game {
         }
     }
 
-    onClick() {
+    onClick(e) {
+        if (e && e.target && (e.target.closest('button') || e.target.closest('input') || e.target.closest('.modal-box') || e.target.closest('.modal-overlay'))) {
+            return;
+        }
         if (this.state === GAME_STATE.MENU) {
             this.startCalibration();
         }
@@ -361,9 +568,10 @@ class Game {
         this.listener = new Listener(this.map.listenerStartPos.x, this.map.listenerStartPos.y);
         this.listener.patrolPoints = this.map.patrolPoints;
 
-        // Start ambient drone sound
+        // Start ambient drone sound & atmospheric horror music
         if (this.audio) {
             this.audio.startAmbient();
+            this.audio.startHorrorMusic();
         }
 
         // Set game state
@@ -398,6 +606,12 @@ class Game {
         this.lastRoomName = '';
         this.hintText = '';
 
+        if (this.audio) {
+            this.audio.stopAmbient();
+            this.audio.stopHorrorMusic();
+            this.audio.stopVictoryMusic();
+        }
+
         const overlay = document.getElementById('overlay');
         if (overlay) overlay.style.pointerEvents = '';
         document.querySelectorAll('.step').forEach(s => {
@@ -417,7 +631,15 @@ class Game {
         if (item && !item.collected) {
             item.collected = true;
             this.player.pickupItem(item);
-            if (this.audio) this.audio.playSound('stone_pickup');
+            if (item.type === ITEM_TYPE.BANISH_RELIC) {
+                if (this.audio) this.audio.playSound('stone_pickup');
+                this.showHint("✦ ACQUIRED BANISHMENT RELIC! Press [G] to destroy the ghost! ✦");
+                if (this.network) {
+                    this.network.broadcastAction('RELIC_PICKUP', { x: this.player.x, y: this.player.y });
+                }
+            } else {
+                if (this.audio) this.audio.playSound('stone_pickup');
+            }
             return;
         }
 
@@ -427,6 +649,13 @@ class Game {
             stone.collected = true;
             this.player.stonesCollected++;
             if (this.audio) this.audio.playSound('stone_pickup');
+            if (this.network) {
+                this.network.broadcastAction('STONE_COLLECTED', {
+                    stoneId: stone.id,
+                    totalCount: this.player.stonesCollected,
+                    senderName: this.network.localPlayerName
+                });
+            }
 
             // Trigger story flashback
             this.flashbackStoneId = stone.id;
@@ -623,8 +852,14 @@ class Game {
             if (stone && !stone.collected) {
                 this.showHint('Press E to collect glowing memory stone');
             } else if (item && !item.collected) {
-                const name = item.type === ITEM_TYPE.BATTERY ? 'Battery' : (item.type === ITEM_TYPE.THROWABLE ? 'Throwable Cans' : 'Key');
-                this.showHint(`Press E to pick up ${name}`);
+                if (item.type === ITEM_TYPE.BANISH_RELIC) {
+                    this.showHint('✦ Press E to pick up Banishment Relic (Destroy the Ghost!) ✦');
+                } else {
+                    const name = item.type === ITEM_TYPE.BATTERY ? 'Battery' : (item.type === ITEM_TYPE.THROWABLE ? 'Throwable Cans' : 'Key');
+                    this.showHint(`Press E to pick up ${name}`);
+                }
+            } else if (this.player.hasRelic && this.listener && !this.listener.isDead && this.listener.distToPlayer(this.player) < 420) {
+                this.showHint('✦ PRESS [G] TO CAST BANISHMENT RELIC AND DESTROY THE GHOST! ✦');
             } else if (spot && !spot.occupied) {
                 this.showHint('Press H to hide in darkness');
             } else if (nearExit && this.player.stonesCollected >= TOTAL_STONES) {
@@ -645,7 +880,13 @@ class Game {
         this.state = GAME_STATE.VICTORY;
         if (this.audio) {
             this.audio.stopAmbient();
-            this.audio.playSound('stone_pickup');
+            this.audio.stopHorrorMusic();
+            this.audio.playVictoryMusic();
+        }
+        if (this.network) {
+            this.network.broadcastAction('PLAYER_ESCAPED', {
+                senderName: this.network.localPlayerName
+            });
         }
         this.showScreen('victoryScreen');
         const overlay = document.getElementById('overlay');
@@ -657,6 +898,7 @@ class Game {
         this.deathCount++;
         if (this.audio) {
             this.audio.stopAmbient();
+            this.audio.stopHorrorMusic();
             this.audio.playDeath();
         }
         setTimeout(() => {
@@ -747,7 +989,18 @@ class Game {
             }
         }
 
-        // 3. Audio manager & Noise bar
+        // 3. Audio manager, Multiplayer Sync & Dynamic Danger Line
+        if (this.network) {
+            this.network.update(dt, this.player, this.listener, this.audio);
+            const qualifying = this.network.getQualifyingPlayerCount(this.player);
+            if (this.audio) {
+                this.audio.updateDynamicRedLine(qualifying);
+            }
+        } else if (this.audio && this.player) {
+            const qualifying = this.player.stonesCollected >= 2 ? 1 : 0;
+            this.audio.updateDynamicRedLine(qualifying);
+        }
+
         if (this.audio) {
             // Silence when holding breath or hiding
             const isMuted = this.player ? (this.player.isHiding || this.player.isHoldingBreath) : false;

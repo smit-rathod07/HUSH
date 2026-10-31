@@ -29,11 +29,27 @@ class AudioManager {
         this.ambientGain = null;
         this.ambientNodes = [];
         this.calibrationPhase = null;
-        this.calibrationCurrentMax = 0;
-        this.calibrationTimer = 0;
         this.heartbeatNoise = 0;
         this._noiseBuffer = null;
         this._distortionCurve = null;
+
+        // Horror atmospheric music
+        this.horrorMusicPlaying = false;
+        this.horrorNodes = [];
+        this.horrorGain = null;
+        this.chimeTimer = null;
+
+        // Cheerful victory atmosphere
+        this.victoryMusicPlaying = false;
+        this.victoryNodes = [];
+        this.victoryGain = null;
+
+        // Dynamic danger line threshold (base 0.36, reduced by 1/50 per player with >= 2 diamonds)
+        this.baseRedLine = (typeof BASE_RED_LINE !== 'undefined') ? BASE_RED_LINE : 0.36;
+        this.redLine = this.baseRedLine;
+
+        // WebRTC peer proximity voice channels (peerId -> { source, filter, gain, stream })
+        this.peerAudioNodes = new Map();
     }
 
     /**
@@ -543,6 +559,12 @@ class AudioManager {
                     break;
                 case 'chase_start':
                     this._soundChaseStart(ctx);
+                    break;
+                case 'ghost_banish':
+                    this._soundGhostBanish(ctx);
+                    break;
+                case 'victory':
+                    this.playVictoryMusic();
                     break;
                 default:
                     console.warn('Unknown sound type:', type);
@@ -1103,10 +1125,393 @@ class AudioManager {
     }
 
     /**
+     * Banish Sound: Celestial chord chime + deep implosion boom + shimmering spirit sweep.
+     * @private
+     */
+    _soundGhostBanish(ctx) {
+        const now = ctx.currentTime;
+        // 1. Resonant celestial bell ring
+        [523.25, 783.99, 1046.5, 1567.98].forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now);
+
+            gain.gain.setValueAtTime(0.001, now);
+            gain.gain.linearRampToValueAtTime(0.25 - idx * 0.04, now + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.5);
+
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+
+            osc.start(now);
+            osc.stop(now + 2.6);
+        });
+
+        // 2. Deep sub-bass implosion
+        const sub = ctx.createOscillator();
+        const subGain = ctx.createGain();
+        sub.type = 'sine';
+        sub.frequency.setValueAtTime(140, now);
+        sub.frequency.exponentialRampToValueAtTime(28, now + 0.9);
+
+        subGain.gain.setValueAtTime(0.45, now);
+        subGain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
+
+        sub.connect(subGain);
+        subGain.connect(this.masterGain);
+        sub.start(now);
+        sub.stop(now + 1.05);
+
+        // 3. Shimmering celestial dissolve sweep
+        const sweep = ctx.createOscillator();
+        const sweepGain = ctx.createGain();
+        sweep.type = 'triangle';
+        sweep.frequency.setValueAtTime(400, now);
+        sweep.frequency.exponentialRampToValueAtTime(3200, now + 1.4);
+
+        sweepGain.gain.setValueAtTime(0.001, now);
+        sweepGain.gain.linearRampToValueAtTime(0.2, now + 0.4);
+        sweepGain.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
+
+        sweep.connect(sweepGain);
+        sweepGain.connect(this.masterGain);
+        sweep.start(now);
+        sweep.stop(now + 1.85);
+    }
+
+    /**
+     * Start chilling horror background music (dissonant pads, metallic scrapes, creepy music box).
+     */
+    startHorrorMusic() {
+        if (this.horrorMusicPlaying) return;
+        try {
+            const ctx = this._ensureAudioContext();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+
+            const hGain = ctx.createGain();
+            hGain.gain.setValueAtTime(0.0001, now);
+            hGain.gain.exponentialRampToValueAtTime(0.22, now + 2.5);
+            hGain.connect(this.masterGain);
+            this.horrorGain = hGain;
+
+            const nodes = [];
+
+            // Low ominous drone chord (D1 36.7Hz + A1 55Hz + detuned Eb1 38.9Hz)
+            const rootFreq = 36.7;
+            [rootFreq, rootFreq * 1.5, rootFreq * 1.06].forEach((f, idx) => {
+                const osc = ctx.createOscillator();
+                osc.type = idx === 2 ? 'sawtooth' : 'triangle';
+                osc.frequency.setValueAtTime(f, now);
+
+                const lfo = ctx.createOscillator();
+                const lfoG = ctx.createGain();
+                lfo.frequency.setValueAtTime(0.15 + idx * 0.05, now);
+                lfoG.gain.setValueAtTime(0.8, now);
+                lfo.connect(osc.frequency);
+
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(140 + idx * 30, now);
+
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(0.12, now);
+
+                osc.connect(filter);
+                filter.connect(g);
+                g.connect(hGain);
+
+                osc.start(now);
+                lfo.start(now);
+                nodes.push(osc, lfo, lfoG, filter, g);
+            });
+
+            // Tension friction scrape (subtle dissonant air flutter)
+            const scrape = ctx.createBufferSource();
+            scrape.buffer = this._getNoiseBuffer();
+            scrape.loop = true;
+            const sFilter = ctx.createBiquadFilter();
+            sFilter.type = 'bandpass';
+            sFilter.frequency.setValueAtTime(320, now);
+            sFilter.Q.value = 12;
+            const sGain = ctx.createGain();
+            sGain.gain.setValueAtTime(0.025, now);
+            scrape.connect(sFilter);
+            sFilter.connect(sGain);
+            sGain.connect(hGain);
+            scrape.start(now);
+            nodes.push(scrape, sFilter, sGain);
+
+            this.horrorNodes = nodes;
+            this.horrorMusicPlaying = true;
+
+            // Sinister random music box chimes
+            this._startCreepyChimes();
+        } catch (e) {
+            console.warn('Failed to start horror music:', e);
+        }
+    }
+
+    _startCreepyChimes() {
+        if (this.chimeTimer) clearInterval(this.chimeTimer);
+        const creepyScale = [587.33, 622.25, 698.46, 739.99, 880.00, 932.33, 1046.50]; // D5, Eb5, F5, F#5, A5, Bb5, C6
+        
+        const playOneChime = () => {
+            if (!this.horrorMusicPlaying || !this.audioCtx) return;
+            try {
+                const ctx = this.audioCtx;
+                const now = ctx.currentTime;
+                const note = creepyScale[Math.floor(Math.random() * creepyScale.length)];
+                
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(note, now);
+                
+                // Delicate music box decay
+                gain.gain.setValueAtTime(0.0001, now);
+                gain.gain.linearRampToValueAtTime(0.08, now + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.8);
+                
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                
+                osc.start(now);
+                osc.stop(now + 3.0);
+            } catch (e) {}
+        };
+
+        this.chimeTimer = setInterval(() => {
+            if (Math.random() < 0.75) {
+                playOneChime();
+                if (Math.random() < 0.4) {
+                    setTimeout(playOneChime, 450);
+                }
+            }
+        }, 3200);
+    }
+
+    /**
+     * Stop horror background music smoothly.
+     */
+    stopHorrorMusic() {
+        if (!this.horrorMusicPlaying) return;
+        this.horrorMusicPlaying = false;
+        if (this.chimeTimer) {
+            clearInterval(this.chimeTimer);
+            this.chimeTimer = null;
+        }
+        try {
+            if (this.horrorGain && this.audioCtx) {
+                const now = this.audioCtx.currentTime;
+                this.horrorGain.gain.setValueAtTime(Math.max(0.0001, this.horrorGain.gain.value), now);
+                this.horrorGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+            }
+            const nodes = this.horrorNodes || [];
+            this.horrorNodes = [];
+            setTimeout(() => {
+                nodes.forEach(n => {
+                    try { if (n.stop) n.stop(); if (n.disconnect) n.disconnect(); } catch (e) {}
+                });
+                if (this.horrorGain) {
+                    try { this.horrorGain.disconnect(); } catch (e) {}
+                    this.horrorGain = null;
+                }
+            }, 1300);
+        } catch (e) {}
+    }
+
+    /**
+     * Cheerful victory atmosphere when a player escapes!
+     */
+    playVictoryMusic() {
+        this.stopHorrorMusic();
+        this.stopAmbient();
+        this.victoryMusicPlaying = true;
+        try {
+            const ctx = this._ensureAudioContext();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+
+            // Cheerful celebratory arpeggio (C4, E4, G4, B4, C5, E5, G5, C6)
+            const notes = [261.63, 329.63, 392.00, 493.88, 523.25, 659.25, 783.99, 1046.50];
+            notes.forEach((freq, i) => {
+                const noteTime = now + i * 0.16;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, noteTime);
+
+                gain.gain.setValueAtTime(0.0001, noteTime);
+                gain.gain.linearRampToValueAtTime(0.22, noteTime + 0.04);
+                gain.gain.exponentialRampToValueAtTime(0.0001, noteTime + 2.0);
+
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+
+                osc.start(noteTime);
+                osc.stop(noteTime + 2.1);
+            });
+
+            // Sustained warm cheerful major chord pad (C major 7th / F major 9th)
+            const padGain = ctx.createGain();
+            padGain.gain.setValueAtTime(0.0001, now);
+            padGain.gain.exponentialRampToValueAtTime(0.25, now + 1.2);
+            padGain.connect(this.masterGain);
+            this.victoryGain = padGain;
+
+            const padFreqs = [130.81, 164.81, 196.00, 246.94, 329.63]; // C3, E3, G3, B3, E4
+            padFreqs.forEach((pf) => {
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(pf, now);
+
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(800, now);
+
+                osc.connect(filter);
+                filter.connect(padGain);
+
+                osc.start(now);
+                this.victoryNodes.push(osc, filter);
+            });
+            this.victoryNodes.push(padGain);
+        } catch (e) {
+            console.warn('Failed to play victory music:', e);
+        }
+    }
+
+    stopVictoryMusic() {
+        if (!this.victoryMusicPlaying) return;
+        this.victoryMusicPlaying = false;
+        try {
+            if (this.victoryGain && this.audioCtx) {
+                const now = this.audioCtx.currentTime;
+                this.victoryGain.gain.setValueAtTime(Math.max(0.0001, this.victoryGain.gain.value), now);
+                this.victoryGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.0);
+            }
+            const nodes = this.victoryNodes || [];
+            this.victoryNodes = [];
+            setTimeout(() => {
+                nodes.forEach(n => {
+                    try { if (n.stop) n.stop(); if (n.disconnect) n.disconnect(); } catch (e) {}
+                });
+                if (this.victoryGain) {
+                    try { this.victoryGain.disconnect(); } catch (e) {}
+                    this.victoryGain = null;
+                }
+            }, 1100);
+        } catch (e) {}
+    }
+
+    /**
+     * Dynamically updates the red line (danger line) based on diamond count.
+     * Reduces the red line threshold by 1/50 for each player with >= 2 diamonds.
+     * @param {number} qualifyingPlayerCount - Number of players with at least 2 diamonds
+     * @returns {number} The updated red line threshold
+     */
+    updateDynamicRedLine(qualifyingPlayerCount = 0) {
+        const base = this.baseRedLine || (typeof BASE_RED_LINE !== 'undefined' ? BASE_RED_LINE : 0.36);
+        const reduction = ((typeof DIAMOND_REDUCTION_FRACTION !== 'undefined') ? DIAMOND_REDUCTION_FRACTION : (1 / 50)) * qualifyingPlayerCount;
+        this.redLine = Math.max(0.12, base - reduction);
+        if (typeof NOISE_THRESHOLDS !== 'undefined') {
+            NOISE_THRESHOLDS.RED_LINE = this.redLine;
+        }
+        return this.redLine;
+    }
+
+    /**
+     * Connects an incoming WebRTC remote peer voice stream to Web Audio API
+     * with proximity attenuation and distance-based muffled lowpass filtering.
+     * @param {string} peerId
+     * @param {MediaStream} stream
+     */
+    addPeerStream(peerId, stream) {
+        if (!peerId || !stream) return;
+        this.removePeerStream(peerId);
+        try {
+            const ctx = this._ensureAudioContext();
+            if (!ctx) return;
+            const source = ctx.createMediaStreamSource(stream);
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(12000, ctx.currentTime);
+
+            const gain = ctx.createGain();
+            gain.gain.setValueAtTime(1.0, ctx.currentTime);
+
+            source.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.masterGain);
+
+            this.peerAudioNodes.set(peerId, { source, filter, gain, stream });
+        } catch (e) {
+            console.warn('Could not add peer stream:', e);
+        }
+    }
+
+    /**
+     * Updates peer voice volume and low-pass muffling based on distance to local player.
+     * @param {string} peerId
+     * @param {number} distance in pixels
+     */
+    updatePeerProximity(peerId, distance) {
+        const node = this.peerAudioNodes.get(peerId);
+        if (!node || !this.audioCtx) return;
+        const ctx = this.audioCtx;
+        const now = ctx.currentTime;
+
+        const MIN_DIST = PROXIMITY_MIN_DISTANCE || 120;
+        const MAX_DIST = PROXIMITY_MAX_DISTANCE || 680;
+
+        let vol = 0;
+        if (distance <= MIN_DIST) {
+            vol = 1.0;
+        } else if (distance >= MAX_DIST) {
+            vol = 0.0;
+        } else {
+            vol = Math.max(0, 1.0 - (distance - MIN_DIST) / (MAX_DIST - MIN_DIST));
+        }
+
+        // Smooth volume adjustment to peer's speakers
+        node.gain.gain.setTargetAtTime(vol, now, 0.06);
+
+        // Distance muffled effect: close = crisp 12kHz, far = muffled 600Hz
+        const cutoff = Math.max(500, 12000 * Math.pow(vol, 0.6));
+        node.filter.frequency.setTargetAtTime(cutoff, now, 0.06);
+    }
+
+    /**
+     * Remove peer audio stream and disconnect Web Audio nodes
+     * @param {string} peerId
+     */
+    removePeerStream(peerId) {
+        const node = this.peerAudioNodes.get(peerId);
+        if (!node) return;
+        try {
+            if (node.source) node.source.disconnect();
+            if (node.filter) node.filter.disconnect();
+            if (node.gain) node.gain.disconnect();
+        } catch (e) {}
+        this.peerAudioNodes.delete(peerId);
+    }
+
+    /**
      * Cleanup and release all audio nodes and microphone streams.
      */
     destroy() {
         this.stopAmbient();
+        this.stopHorrorMusic();
+        this.stopVictoryMusic();
+
+        // Disconnect all peer audio streams
+        if (this.peerAudioNodes) {
+            for (const peerId of this.peerAudioNodes.keys()) {
+                this.removePeerStream(peerId);
+            }
+        }
 
         if (this.stream) {
             try {
