@@ -48,8 +48,27 @@ class AudioManager {
         this.baseRedLine = (typeof BASE_RED_LINE !== 'undefined') ? BASE_RED_LINE : 0.36;
         this.redLine = this.baseRedLine;
 
+        // Threatening movement atmosphere drone
+        this.isMoving = false;
+        this.movementDroneGain = null;
+        this.movementDroneOsc = null;
+
         // WebRTC peer proximity voice channels (peerId -> { source, filter, gain, stream })
         this.peerAudioNodes = new Map();
+    }
+
+    /**
+     * Swell low-frequency subterranean rumble when player is moving
+     * @param {boolean} moving 
+     */
+    setMoving(moving) {
+        this.isMoving = !!moving;
+        if (this.movementDroneGain && this.audioCtx) {
+            const now = this.audioCtx.currentTime;
+            const targetGain = this.isMoving ? 0.22 : 0.04;
+            this.movementDroneGain.gain.setValueAtTime(this.movementDroneGain.gain.value, now);
+            this.movementDroneGain.gain.linearRampToValueAtTime(targetGain, now + 0.35);
+        }
     }
 
     /**
@@ -557,6 +576,9 @@ class AudioManager {
                 case 'listener_growl':
                     this._soundListenerGrowl(ctx);
                     break;
+                case 'death_jumpscare':
+                    this._soundDeathJumpscare(ctx);
+                    break;
                 case 'chase_start':
                     this._soundChaseStart(ctx);
                     break;
@@ -697,7 +719,7 @@ class AudioManager {
     }
 
     /**
-     * Footstep Water: Low noise burst with very short decay, slight pitch variation.
+     * Footstep Water: Heavy splashing water displacement with subterranean echo.
      * @private
      */
     _soundFootstepWater(ctx) {
@@ -705,40 +727,56 @@ class AudioManager {
         const noise = ctx.createBufferSource();
         noise.buffer = this._getNoiseBuffer();
 
+        // 1. Heavy water slap bandpass
         const filter = ctx.createBiquadFilter();
         filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(460 + randomFloat(-50, 50), now);
-        filter.Q.value = 2.2;
+        filter.frequency.setValueAtTime(380 + randomFloat(-40, 40), now);
+        filter.Q.value = 2.8;
 
         const gain = ctx.createGain();
         gain.gain.setValueAtTime(0.001, now);
-        gain.gain.linearRampToValueAtTime(0.2, now + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        gain.gain.linearRampToValueAtTime(0.32, now + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
 
-        // High splash spray
+        // 2. Subterranean deep water plunge sub-thump
+        const plunge = ctx.createOscillator();
+        plunge.type = 'sine';
+        plunge.frequency.setValueAtTime(62, now);
+        plunge.frequency.exponentialRampToValueAtTime(35, now + 0.18);
+        const plungeGain = ctx.createGain();
+        plungeGain.gain.setValueAtTime(0.001, now);
+        plungeGain.gain.linearRampToValueAtTime(0.35, now + 0.015);
+        plungeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+        // 3. High splash spray
         const splash = ctx.createBiquadFilter();
         splash.type = 'highpass';
-        splash.frequency.setValueAtTime(2400, now);
+        splash.frequency.setValueAtTime(2200, now);
 
         const splashGain = ctx.createGain();
         splashGain.gain.setValueAtTime(0.001, now);
-        splashGain.gain.linearRampToValueAtTime(0.08, now + 0.015);
-        splashGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        splashGain.gain.linearRampToValueAtTime(0.12, now + 0.018);
+        splashGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
 
         noise.connect(filter);
         filter.connect(gain);
         gain.connect(this.masterGain);
+
+        plunge.connect(plungeGain);
+        plungeGain.connect(this.masterGain);
 
         noise.connect(splash);
         splash.connect(splashGain);
         splashGain.connect(this.masterGain);
 
         noise.start(now);
-        noise.stop(now + 0.14);
+        plunge.start(now);
+        noise.stop(now + 0.26);
+        plunge.stop(now + 0.22);
     }
 
     /**
-     * Footstep Loud: Sharper noise burst than normal, with creaky overtone.
+     * Footstep Loud: Aggressive wood fracture, creak, and heavy hollow floor impact.
      * @private
      */
     _soundFootstepLoud(ctx) {
@@ -746,64 +784,121 @@ class AudioManager {
         const noise = ctx.createBufferSource();
         noise.buffer = this._getNoiseBuffer();
 
+        // 1. Loud floorboard snap
         const filter = ctx.createBiquadFilter();
         filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(950 + randomFloat(-60, 60), now);
-        filter.Q.value = 3.2;
+        filter.frequency.setValueAtTime(1150 + randomFloat(-80, 80), now);
+        filter.Q.value = 3.6;
 
         const gain = ctx.createGain();
         gain.gain.setValueAtTime(0.001, now);
-        gain.gain.linearRampToValueAtTime(0.35, now + 0.005);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+        gain.gain.linearRampToValueAtTime(0.42, now + 0.006);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+        // 2. Menacing creak overtone
+        const creak = ctx.createOscillator();
+        creak.type = 'sawtooth';
+        creak.frequency.setValueAtTime(320 + randomFloat(-30, 30), now);
+        creak.frequency.linearRampToValueAtTime(460, now + 0.12);
+
+        const creakGain = ctx.createGain();
+        creakGain.gain.setValueAtTime(0.001, now);
+        creakGain.gain.linearRampToValueAtTime(0.18, now + 0.02);
+        creakGain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+        // 3. Sub-bass hollow board strike
+        const thud = ctx.createOscillator();
+        thud.type = 'triangle';
+        thud.frequency.setValueAtTime(75, now);
+        thud.frequency.exponentialRampToValueAtTime(42, now + 0.18);
+        const thudGain = ctx.createGain();
+        thudGain.gain.setValueAtTime(0.001, now);
+        thudGain.gain.linearRampToValueAtTime(0.40, now + 0.01);
+        thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.20);
 
         noise.connect(filter);
         filter.connect(gain);
         gain.connect(this.masterGain);
-
-        // Creaky overtone
-        const creak = ctx.createOscillator();
-        creak.type = 'triangle';
-        creak.frequency.setValueAtTime(360 + randomFloat(-25, 25), now);
-        creak.frequency.linearRampToValueAtTime(420, now + 0.1);
-
-        const creakGain = ctx.createGain();
-        creakGain.gain.setValueAtTime(0.001, now);
-        creakGain.gain.linearRampToValueAtTime(0.12, now + 0.02);
-        creakGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
 
         creak.connect(creakGain);
         creakGain.connect(this.masterGain);
 
+        thud.connect(thudGain);
+        thudGain.connect(this.masterGain);
+
         noise.start(now);
         creak.start(now);
-        noise.stop(now + 0.2);
-        creak.stop(now + 0.2);
+        thud.start(now);
+        noise.stop(now + 0.24);
+        creak.stop(now + 0.24);
+        thud.stop(now + 0.24);
     }
 
     /**
-     * Normal Footstep: Muffled subtle thud for regular floors.
+     * Threatening Normal Footstep: Deep sub-bass floor impact, cavernous hollow echo,
+     * and gritty concrete crunch that sounds menacing in dark empty corridors.
      * @private
      */
     _soundFootstepNormal(ctx) {
         const now = ctx.currentTime;
-        const noise = ctx.createBufferSource();
-        noise.buffer = this._getNoiseBuffer();
 
-        const filter = ctx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(400 + randomFloat(-40, 40), now);
+        // 1. Heavy physical sub-bass floor impact thump (vibrating subterranean slabs)
+        const subOsc = ctx.createOscillator();
+        subOsc.type = 'triangle';
+        subOsc.frequency.setValueAtTime(56 + randomFloat(-4, 4), now);
+        subOsc.frequency.exponentialRampToValueAtTime(34, now + 0.16);
 
-        const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0.001, now);
-        gain.gain.linearRampToValueAtTime(0.15, now + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+        const subGain = ctx.createGain();
+        subGain.gain.setValueAtTime(0.001, now);
+        subGain.gain.linearRampToValueAtTime(0.38, now + 0.012);
+        subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
 
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.masterGain);
+        subOsc.connect(subGain);
+        subGain.connect(this.masterGain);
 
-        noise.start(now);
-        noise.stop(now + 0.1);
+        // 2. Cavernous hollow corridor resonance (echoing down empty halls)
+        const cNoise = ctx.createBufferSource();
+        cNoise.buffer = this._getNoiseBuffer();
+
+        const cFilter = ctx.createBiquadFilter();
+        cFilter.type = 'bandpass';
+        cFilter.frequency.setValueAtTime(145 + randomFloat(-15, 15), now);
+        cFilter.Q.value = 6.8;
+
+        const cGain = ctx.createGain();
+        cGain.gain.setValueAtTime(0.001, now);
+        cGain.gain.linearRampToValueAtTime(0.24, now + 0.015);
+        cGain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+
+        cNoise.connect(cFilter);
+        cFilter.connect(cGain);
+        cGain.connect(this.masterGain);
+
+        // 3. Gritty gravel/masonry debris friction (broken tiles under boot)
+        const gNoise = ctx.createBufferSource();
+        gNoise.buffer = this._getNoiseBuffer();
+
+        const gFilter = ctx.createBiquadFilter();
+        gFilter.type = 'bandpass';
+        gFilter.frequency.setValueAtTime(840 + randomFloat(-60, 60), now);
+        gFilter.Q.value = 2.4;
+
+        const gGain = ctx.createGain();
+        gGain.gain.setValueAtTime(0.001, now);
+        gGain.gain.linearRampToValueAtTime(0.14, now + 0.008);
+        gGain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+        gNoise.connect(gFilter);
+        gFilter.connect(gGain);
+        gGain.connect(this.masterGain);
+
+        subOsc.start(now);
+        cNoise.start(now);
+        gNoise.start(now);
+
+        subOsc.stop(now + 0.20);
+        cNoise.stop(now + 0.26);
+        gNoise.stop(now + 0.12);
     }
 
     /**
@@ -1243,6 +1338,23 @@ class AudioManager {
             scrape.start(now);
             nodes.push(scrape, sFilter, sGain);
 
+            // Movement tension sub-bass binaural drone
+            const mOsc = ctx.createOscillator();
+            mOsc.type = 'sawtooth';
+            mOsc.frequency.setValueAtTime(38.8, now);
+            const mFilter = ctx.createBiquadFilter();
+            mFilter.type = 'lowpass';
+            mFilter.frequency.setValueAtTime(85, now);
+            const mGain = ctx.createGain();
+            mGain.gain.setValueAtTime(this.isMoving ? 0.22 : 0.04, now);
+            mOsc.connect(mFilter);
+            mFilter.connect(mGain);
+            mGain.connect(this.masterGain);
+            mOsc.start(now);
+            this.movementDroneGain = mGain;
+            this.movementDroneOsc = mOsc;
+            nodes.push(mOsc, mFilter, mGain);
+
             this.horrorNodes = nodes;
             this.horrorMusicPlaying = true;
 
@@ -1298,6 +1410,8 @@ class AudioManager {
     stopHorrorMusic() {
         if (!this.horrorMusicPlaying) return;
         this.horrorMusicPlaying = false;
+        this.movementDroneGain = null;
+        this.movementDroneOsc = null;
         if (this.chimeTimer) {
             clearInterval(this.chimeTimer);
             this.chimeTimer = null;
@@ -1557,7 +1671,79 @@ class AudioManager {
         // Can be used for custom chase music fade out
     }
 
+    /**
+     * Violent death jumpscare audio impact:
+     * Dissonant screech, explosive sub-bass drop, bone/porcelain fracture crack.
+     * @private
+     */
+    _soundDeathJumpscare(ctx) {
+        const now = ctx.currentTime;
+
+        // 1. High piercing screech through waveshaper distortion
+        const screech = ctx.createOscillator();
+        screech.type = 'sawtooth';
+        screech.frequency.setValueAtTime(1750, now);
+        screech.frequency.exponentialRampToValueAtTime(320, now + 0.65);
+
+        const shaper = ctx.createWaveShaper();
+        shaper.curve = this._makeDistortionCurve(45);
+
+        const sFilter = ctx.createBiquadFilter();
+        sFilter.type = 'bandpass';
+        sFilter.frequency.setValueAtTime(1400, now);
+        sFilter.Q.value = 4.5;
+
+        const sGain = ctx.createGain();
+        sGain.gain.setValueAtTime(0.001, now);
+        sGain.gain.linearRampToValueAtTime(0.65, now + 0.015);
+        sGain.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
+
+        screech.connect(shaper);
+        shaper.connect(sFilter);
+        sFilter.connect(sGain);
+        sGain.connect(this.masterGain);
+
+        // 2. Explosive sub-bass impact drop (chest-thumping bomb)
+        const subBoom = ctx.createOscillator();
+        subBoom.type = 'sine';
+        subBoom.frequency.setValueAtTime(88, now);
+        subBoom.frequency.exponentialRampToValueAtTime(24, now + 0.85);
+
+        const subGain = ctx.createGain();
+        subGain.gain.setValueAtTime(0.001, now);
+        subGain.gain.linearRampToValueAtTime(0.85, now + 0.01);
+        subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+
+        subBoom.connect(subGain);
+        subGain.connect(this.masterGain);
+
+        // 3. Porcelain/glass fracture transient snap
+        const crackNoise = ctx.createBufferSource();
+        crackNoise.buffer = this._getNoiseBuffer();
+        const crackFilter = ctx.createBiquadFilter();
+        crackFilter.type = 'highpass';
+        crackFilter.frequency.setValueAtTime(3200, now);
+
+        const crackGain = ctx.createGain();
+        crackGain.gain.setValueAtTime(0.001, now);
+        crackGain.gain.linearRampToValueAtTime(0.70, now + 0.004);
+        crackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+        crackNoise.connect(crackFilter);
+        crackFilter.connect(crackGain);
+        crackGain.connect(this.masterGain);
+
+        screech.start(now);
+        subBoom.start(now);
+        crackNoise.start(now);
+
+        screech.stop(now + 0.8);
+        subBoom.stop(now + 0.9);
+        crackNoise.stop(now + 0.2);
+    }
+
     playDeath() {
+        this.playSound('death_jumpscare');
         this.playSound('listener_growl');
     }
 

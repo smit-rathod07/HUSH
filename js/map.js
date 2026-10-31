@@ -121,6 +121,8 @@ class GameMap {
         this._carveToiletPitAndSecretTunnels();
         this._carveHostelCorridors();
         this._carveHospitalWing();
+        this._carveWestCatacombs();
+        this._carveEastPsychiatricCrypt();
         this._carveStationHall();
 
         // 3. Carve Connecting Corridors (Short Way & Quiet Ways)
@@ -132,20 +134,20 @@ class GameMap {
         this._setupItems();
         this._setupPatrolRoute();
 
-        // 5. Positions
+        // 5. Positions (adjusted for expanded 76x62 grid)
         this.startPos = {
-            x: tileToPixel(30),
-            y: tileToPixel(45)
+            x: tileToPixel(37),
+            y: tileToPixel(56)
         };
 
         this.exitPos = {
-            x: tileToPixel(29),
+            x: tileToPixel(37),
             y: tileToPixel(2)
         };
 
         this.listenerStartPos = {
-            x: tileToPixel(30),
-            y: tileToPixel(25)
+            x: tileToPixel(37),
+            y: tileToPixel(30)
         };
     }
 
@@ -154,15 +156,15 @@ class GameMap {
     // ------------------------------------------------------------
 
     _carveExitChamber() {
-        // Exit Chamber at top center (x: 25, y: 1, w: 10, h: 4)
-        const rx = 25, ry = 1, rw = 10, rh = 4;
+        // Exit Chamber at top center (x: 32, y: 1, w: 12, h: 5)
+        const rx = 32, ry = 1, rw = 12, rh = 5;
         this._fillRect(rx, ry, rw, rh, TILE.FLOOR);
 
         // Place exit tiles at the north back wall
-        this.tiles[1][28] = TILE.EXIT;
-        this.tiles[1][29] = TILE.EXIT;
-        this.tiles[1][30] = TILE.EXIT;
-        this.tiles[1][31] = TILE.EXIT;
+        this.tiles[1][36] = TILE.EXIT;
+        this.tiles[1][37] = TILE.EXIT;
+        this.tiles[1][38] = TILE.EXIT;
+        this.tiles[1][39] = TILE.EXIT;
 
         this.rooms.push({
             x: rx,
@@ -175,19 +177,19 @@ class GameMap {
     }
 
     _carveFloodedBasement() {
-        // Flooded Basement (x: 2, y: 2, w: 16, h: 12)
+        // Flooded Basement (x: 2, y: 2, w: 21, h: 17)
         // Submerged under dark water. High noise footprint.
-        const rx = 2, ry = 2, rw = 16, rh = 12;
+        const rx = 2, ry = 2, rw = 21, rh = 17;
         this._fillRect(rx, ry, rw, rh, TILE.WATER);
 
         // Submerged pump machinery and support pillars (cover walls)
-        this._fillRect(5, 4, 2, 2, TILE.WALL);
-        this._fillRect(5, 9, 2, 2, TILE.WALL);
-        this._fillRect(11, 4, 2, 2, TILE.WALL);
-        this._fillRect(11, 9, 2, 2, TILE.WALL);
+        this._fillRect(5, 5, 2, 2, TILE.WALL);
+        this._fillRect(5, 12, 2, 2, TILE.WALL);
+        this._fillRect(14, 5, 2, 2, TILE.WALL);
+        this._fillRect(14, 12, 2, 2, TILE.WALL);
 
         // Elevated dry walkway along the top right of the basement
-        this._fillRect(14, 2, 3, 4, TILE.FLOOR);
+        this._fillRect(18, 2, 5, 4, TILE.FLOOR);
 
         this.rooms.push({
             x: rx,
@@ -200,26 +202,26 @@ class GameMap {
     }
 
     _carveOfficeFloor() {
-        // Office Floor (x: 21, y: 5, w: 18, h: 12)
+        // Office Floor (x: 26, y: 7, w: 24, h: 15)
         // Filled with creaky floorboards that create high noise.
-        const rx = 21, ry = 5, rw = 18, rh = 12;
+        const rx = 26, ry = 7, rw = 24, rh = 15;
         this._fillRect(rx, ry, rw, rh, TILE.LOUD_FLOOR);
 
         // Executive Office in Northwest corner
-        this._drawHLine(21, 26, 8, TILE.WALL);
-        this._drawVLine(5, 8, 26, TILE.WALL);
-        this.tiles[8][24] = TILE.DOOR; // Executive office entrance
+        this._drawHLine(26, 33, 11, TILE.WALL);
+        this._drawVLine(7, 11, 33, TILE.WALL);
+        this.tiles[11][30] = TILE.DOOR; // Executive office entrance
 
         // Server Room in Northeast corner
-        this._drawHLine(33, 38, 8, TILE.WALL);
-        this._drawVLine(5, 8, 33, TILE.WALL);
-        this.tiles[8][35] = TILE.DOOR; // Server room entrance
+        this._drawHLine(42, 49, 11, TILE.WALL);
+        this._drawVLine(7, 11, 42, TILE.WALL);
+        this.tiles[11][45] = TILE.DOOR; // Server room entrance
 
         // Central cubicle partition barriers (creating cover & stealth lanes)
-        this._drawHLine(23, 26, 11, TILE.WALL);
-        this._drawHLine(33, 36, 11, TILE.WALL);
-        this._drawHLine(23, 26, 14, TILE.WALL);
-        this._drawHLine(33, 36, 14, TILE.WALL);
+        this._drawHLine(28, 33, 14, TILE.WALL);
+        this._drawHLine(42, 47, 14, TILE.WALL);
+        this._drawHLine(28, 33, 17, TILE.WALL);
+        this._drawHLine(42, 47, 17, TILE.WALL);
 
         this.rooms.push({
             x: rx,
@@ -232,29 +234,29 @@ class GameMap {
     }
 
     _carveToiletPitAndSecretTunnels() {
-        // Toilet Pit Restroom & Secret Maintenance Tunnels (x: 41, y: 2, w: 17, h: 13)
-        const rx = 41, ry = 2, rw = 17, rh = 13;
+        // Toilet Pit Restroom & Secret Maintenance Tunnels (x: 53, y: 2, w: 21, h: 17)
+        const rx = 53, ry = 2, rw = 21, rh = 17;
 
         // West side: Decrepit Washroom / Toilet Pit (Floor tiles)
-        this._fillRect(41, 7, 7, 8, TILE.FLOOR);
+        this._fillRect(53, 7, 8, 10, TILE.FLOOR);
         // Stall partition dividers
-        this._drawHLine(43, 46, 9, TILE.WALL);
-        this._drawHLine(43, 46, 12, TILE.WALL);
+        this._drawHLine(55, 59, 10, TILE.WALL);
+        this._drawHLine(55, 59, 13, TILE.WALL);
 
-        // Wall between restroom and tunnels with cracked breach at (47, 10)
-        this._drawVLine(7, 14, 47, TILE.WALL);
-        this.tiles[10][47] = TILE.FLOOR; // Cracked wall gap
+        // Wall between restroom and tunnels with cracked breach at (61, 11)
+        this._drawVLine(7, 16, 61, TILE.WALL);
+        this.tiles[11][61] = TILE.FLOOR; // Cracked wall gap
 
         // East side: Secret Tunnels (Sound dampening tunnel tiles)
         // Upper maintenance tunnel loop and pedestal chamber
-        this._fillRect(48, 2, 9, 5, TILE.TUNNEL);
-        this._fillRect(50, 3, 5, 1, TILE.WALL); // Central rock pillar inside tunnel chamber
+        this._fillRect(62, 2, 11, 6, TILE.TUNNEL);
+        this._fillRect(65, 3, 5, 2, TILE.WALL); // Central rock pillar inside tunnel chamber
 
         // Connecting tunnel passages
-        this._fillRect(48, 7, 2, 4, TILE.TUNNEL);
-        this._fillRect(52, 7, 5, 2, TILE.TUNNEL);
-        this._fillRect(54, 9, 3, 5, TILE.TUNNEL);
-        this._fillRect(50, 11, 4, 2, TILE.TUNNEL);
+        this._fillRect(62, 8, 3, 5, TILE.TUNNEL);
+        this._fillRect(67, 8, 6, 2, TILE.TUNNEL);
+        this._fillRect(70, 10, 3, 7, TILE.TUNNEL);
+        this._fillRect(64, 13, 6, 2, TILE.TUNNEL);
 
         this.rooms.push({
             x: rx,
@@ -267,51 +269,51 @@ class GameMap {
     }
 
     _carveHostelCorridors() {
-        // Hostel Corridors (x: 2, y: 18, w: 18, h: 14)
-        // Long hallways with numbered rooms (3x3 or 4x3) branching off
-        const rx = 2, ry = 18, rw = 18, rh = 14;
+        // Hostel Corridors (x: 2, y: 22, w: 21, h: 17)
+        // Long hallways with numbered rooms branching off
+        const rx = 2, ry = 22, rw = 21, rh = 17;
 
-        // Central Hostel Hallway (2 tiles wide)
-        this._fillRect(10, 18, 2, 14, TILE.FLOOR);
+        // Central Hostel Hallway (3 tiles wide)
+        this._fillRect(11, 22, 3, 17, TILE.FLOOR);
 
         // West wall of hallway with doors
-        this._drawVLine(18, 31, 9, TILE.WALL);
+        this._drawVLine(22, 38, 10, TILE.WALL);
         // East wall of hallway with doors
-        this._drawVLine(18, 31, 12, TILE.WALL);
+        this._drawVLine(22, 38, 14, TILE.WALL);
 
         // Room 101 (Northwest)
-        this._fillRect(2, 18, 7, 4, TILE.FLOOR);
-        this._drawHLine(2, 9, 21, TILE.WALL);
-        this.tiles[20][9] = TILE.DOOR;
-        this.tiles[19][4] = TILE.WALL; // Bed obstacle
+        this._fillRect(2, 22, 8, 5, TILE.FLOOR);
+        this._drawHLine(2, 10, 26, TILE.WALL);
+        this.tiles[24][10] = TILE.DOOR;
+        this.tiles[23][5] = TILE.WALL; // Bed obstacle
 
         // Room 102 (Middle-west)
-        this._fillRect(2, 22, 7, 4, TILE.FLOOR);
-        this._drawHLine(2, 9, 25, TILE.WALL);
-        this.tiles[23][9] = TILE.DOOR;
-        this.tiles[23][4] = TILE.WALL; // Bed obstacle
+        this._fillRect(2, 27, 8, 5, TILE.FLOOR);
+        this._drawHLine(2, 10, 32, TILE.WALL);
+        this.tiles[29][10] = TILE.DOOR;
+        this.tiles[29][5] = TILE.WALL; // Bed obstacle
 
         // Room 103 (Southwest)
-        this._fillRect(2, 26, 7, 5, TILE.FLOOR);
-        this.tiles[28][9] = TILE.DOOR;
-        this.tiles[28][4] = TILE.WALL; // Bed obstacle
+        this._fillRect(2, 33, 8, 6, TILE.FLOOR);
+        this.tiles[35][10] = TILE.DOOR;
+        this.tiles[35][5] = TILE.WALL; // Bed obstacle
 
         // Room 104 (Northeast)
-        this._fillRect(13, 18, 6, 4, TILE.FLOOR);
-        this._drawHLine(12, 19, 21, TILE.WALL);
-        this.tiles[19][12] = TILE.DOOR;
-        this.tiles[19][16] = TILE.WALL; // Bed obstacle
+        this._fillRect(15, 22, 8, 5, TILE.FLOOR);
+        this._drawHLine(14, 22, 26, TILE.WALL);
+        this.tiles[24][14] = TILE.DOOR;
+        this.tiles[23][19] = TILE.WALL; // Bed obstacle
 
         // Common Lounge (Middle-east)
-        this._fillRect(13, 22, 6, 5, TILE.FLOOR);
-        this._drawHLine(12, 19, 26, TILE.WALL);
-        this.tiles[24][12] = TILE.DOOR;
-        this._fillRect(15, 23, 2, 1, TILE.WALL); // Coffee table / seating obstacle
+        this._fillRect(15, 27, 8, 6, TILE.FLOOR);
+        this._drawHLine(14, 22, 33, TILE.WALL);
+        this.tiles[30][14] = TILE.DOOR;
+        this._fillRect(17, 29, 3, 1, TILE.WALL); // Coffee table obstacle
 
         // Shared Bathroom Stalls (Southeast)
-        this._fillRect(13, 27, 6, 5, TILE.FLOOR);
-        this.tiles[29][12] = TILE.DOOR;
-        this._drawHLine(14, 17, 29, TILE.WALL); // Stall divider
+        this._fillRect(15, 34, 8, 5, TILE.FLOOR);
+        this.tiles[36][14] = TILE.DOOR;
+        this._drawHLine(16, 20, 36, TILE.WALL); // Stall divider
 
         this.rooms.push({
             x: rx,
@@ -324,42 +326,42 @@ class GameMap {
     }
 
     _carveHospitalWing() {
-        // Hospital Wing (x: 40, y: 18, w: 18, h: 14)
+        // Hospital Wing (x: 53, y: 22, w: 21, h: 17)
         // Medical wards with bed obstacles, pharmacy, and morgue
-        const rx = 40, ry = 18, rw = 18, rh = 14;
+        const rx = 53, ry = 22, rw = 21, rh = 17;
 
         // Main access aisle
-        this._fillRect(40, 18, 3, 14, TILE.FLOOR);
+        this._fillRect(53, 22, 3, 17, TILE.FLOOR);
 
         // Ward A (Northwest open ward)
-        this._fillRect(43, 18, 6, 6, TILE.FLOOR);
+        this._fillRect(56, 22, 8, 8, TILE.FLOOR);
         // Gurneys / hospital bed obstacles
-        this._fillRect(44, 19, 2, 1, TILE.WALL);
-        this._fillRect(44, 22, 2, 1, TILE.WALL);
+        this._fillRect(57, 24, 2, 1, TILE.WALL);
+        this._fillRect(57, 27, 2, 1, TILE.WALL);
 
         // Ward B (Southwest open ward)
-        this._fillRect(43, 25, 6, 7, TILE.FLOOR);
+        this._fillRect(56, 31, 8, 8, TILE.FLOOR);
         // Dividing wall between wards
-        this._drawHLine(43, 49, 24, TILE.WALL);
+        this._drawHLine(56, 63, 30, TILE.WALL);
         // Gurneys / hospital bed obstacles
-        this._fillRect(44, 27, 2, 1, TILE.WALL);
-        this._fillRect(44, 30, 2, 1, TILE.WALL);
+        this._fillRect(57, 33, 2, 1, TILE.WALL);
+        this._fillRect(57, 36, 2, 1, TILE.WALL);
 
         // East partition wall
-        this._drawVLine(18, 31, 49, TILE.WALL);
+        this._drawVLine(22, 38, 64, TILE.WALL);
 
         // Pharmacy (Northeast)
-        this._fillRect(50, 18, 8, 6, TILE.FLOOR);
-        this.tiles[21][49] = TILE.DOOR;
-        this._fillRect(52, 21, 3, 1, TILE.WALL); // Dispensing counter
+        this._fillRect(65, 22, 8, 8, TILE.FLOOR);
+        this.tiles[25][64] = TILE.DOOR;
+        this._fillRect(67, 25, 4, 1, TILE.WALL); // Dispensing counter
 
         // Dividing wall between Pharmacy and Morgue
-        this._drawHLine(49, 57, 24, TILE.WALL);
+        this._drawHLine(64, 73, 30, TILE.WALL);
 
         // Morgue (Southeast)
-        this._fillRect(50, 25, 8, 7, TILE.FLOOR);
-        this.tiles[27][49] = TILE.DOOR;
-        this._fillRect(52, 27, 3, 2, TILE.WALL); // Autopsy slab
+        this._fillRect(65, 31, 8, 8, TILE.FLOOR);
+        this.tiles[34][64] = TILE.DOOR;
+        this._fillRect(67, 33, 4, 2, TILE.WALL); // Autopsy slab
 
         this.rooms.push({
             x: rx,
@@ -371,34 +373,105 @@ class GameMap {
         });
     }
 
+    _carveWestCatacombs() {
+        // Deep West Catacombs / Sub-Basement Sump Vault (x: 2, y: 42, w: 21, h: 18)
+        const rx = 2, ry = 42, rw = 21, rh = 18;
+
+        // Main catacomb corridor
+        this._fillRect(10, 42, 3, 18, TILE.FLOOR);
+
+        // West Crypt
+        this._fillRect(2, 42, 8, 7, TILE.FLOOR);
+        this._fillRect(4, 44, 3, 2, TILE.WALL); // Stone sarcophagus obstacle
+        this.tiles[45][10] = TILE.DOOR;
+
+        // Deep Sump Drainage Trench (Water)
+        this._fillRect(2, 50, 8, 9, TILE.WATER);
+        this._fillRect(5, 53, 2, 2, TILE.WALL); // Pump machinery
+
+        // East Archive Storage
+        this._fillRect(13, 42, 9, 8, TILE.FLOOR);
+        this._fillRect(15, 45, 4, 1, TILE.WALL); // File shelf obstacle
+        this.tiles[46][13] = TILE.DOOR;
+
+        // Lower Drainage Cistern (Water with Catwalk)
+        this._fillRect(13, 51, 9, 8, TILE.WATER);
+        this._fillRect(17, 51, 2, 8, TILE.FLOOR); // Dry concrete catwalk
+
+        this.rooms.push({
+            x: rx,
+            y: ry,
+            w: rw,
+            h: rh,
+            type: 'catacombs',
+            name: 'West Catacombs'
+        });
+    }
+
+    _carveEastPsychiatricCrypt() {
+        // Deep East Psychiatric Archive Crypt (x: 53, y: 42, w: 21, h: 18)
+        const rx = 53, ry = 42, rw = 21, rh = 18;
+
+        // Main access corridor
+        this._fillRect(53, 42, 3, 18, TILE.FLOOR);
+
+        // Padded Isolation Cell 1 (NW)
+        this._fillRect(56, 42, 8, 6, TILE.FLOOR);
+        this._drawHLine(56, 63, 47, TILE.WALL);
+        this.tiles[45][56] = TILE.DOOR;
+
+        // Padded Isolation Cell 2 (SW)
+        this._fillRect(56, 50, 8, 9, TILE.FLOOR);
+        this.tiles[54][56] = TILE.DOOR;
+
+        // Central cross-corridor connecting aisle to Deep Psychiatric Vault
+        this._fillRect(55, 48, 10, 2, TILE.FLOOR);
+
+        // Deep Psychiatric Archive Vault (East)
+        this._fillRect(65, 42, 8, 17, TILE.FLOOR);
+        this._drawVLine(42, 58, 64, TILE.WALL);
+        this.tiles[49][64] = TILE.DOOR;
+
+        // Heavy archive metal racks
+        this._fillRect(67, 44, 4, 1, TILE.WALL);
+        this._fillRect(67, 54, 4, 1, TILE.WALL);
+
+        this.rooms.push({
+            x: rx,
+            y: ry,
+            w: rw,
+            h: rh,
+            type: 'psychiatric',
+            name: 'Psychiatric Crypt'
+        });
+    }
+
     _carveStationHall() {
-        // Station Hall (x: 18, y: 35, w: 24, h: 12)
+        // Station Hall (x: 24, y: 41, w: 28, h: 19)
         // Grand open subterranean station with pillars and ticket booths
-        const rx = 18, ry = 35, rw = 24, rh = 12;
+        const rx = 24, ry = 41, rw = 28, rh = 19;
         this._fillRect(rx, ry, rw, rh, TILE.FLOOR);
 
         // Architectural support pillars (providing cover against sightlines)
-        this._fillRect(22, 37, 2, 2, TILE.WALL);
-        this._fillRect(36, 37, 2, 2, TILE.WALL);
-        this._fillRect(22, 43, 2, 2, TILE.WALL);
-        this._fillRect(36, 43, 2, 2, TILE.WALL);
+        this._fillRect(28, 44, 2, 2, TILE.WALL);
+        this._fillRect(45, 44, 2, 2, TILE.WALL);
+        this._fillRect(28, 52, 2, 2, TILE.WALL);
+        this._fillRect(45, 52, 2, 2, TILE.WALL);
 
         // Ticket Counter / Booth (West side)
-        this._drawHLine(20, 25, 39, TILE.WALL);
-        this._drawVLine(39, 41, 20, TILE.WALL);
-        this._drawVLine(39, 41, 25, TILE.WALL);
-        this.tiles[41][22] = TILE.DOOR; // Ticket booth door
+        this._drawHLine(26, 32, 47, TILE.WALL);
+        this._drawVLine(47, 50, 26, TILE.WALL);
+        this._drawVLine(47, 50, 32, TILE.WALL);
+        this.tiles[50][29] = TILE.DOOR; // Ticket booth door
 
         // Turnstiles barrier line with gaps
-        this._drawHLine(26, 33, 41, TILE.WALL);
-        this.tiles[41][28] = TILE.FLOOR; // Turnstile passage 1
-        this.tiles[41][30] = TILE.FLOOR; // Turnstile passage 2
-        this.tiles[41][32] = TILE.FLOOR; // Turnstile passage 3
+        this._drawHLine(33, 42, 49, TILE.WALL);
+        this.tiles[49][35] = TILE.FLOOR; // Turnstile passage 1
+        this.tiles[49][37] = TILE.FLOOR; // Turnstile passage 2
+        this.tiles[49][40] = TILE.FLOOR; // Turnstile passage 3
 
-        // Station Maintenance Booth (Southeast corner)
-        this._drawHLine(35, 41, 42, TILE.WALL);
-        this._drawVLine(42, 46, 35, TILE.WALL);
-        this.tiles[44][35] = TILE.DOOR;
+        // Station Platform Tracks Wall at bottom
+        this._drawHLine(24, 51, 58, TILE.WALL);
 
         this.rooms.push({
             x: rx,
@@ -419,30 +492,30 @@ class GameMap {
         // 1. THE SHORT WAY (Direct arterial route patrolled by Listener)
         // ========================================================
 
-        // Central Vertical Corridor: Station Hall (y:35) -> Office Floor (y:16)
-        // 3 tiles wide (x: 29..31)
-        this._fillRect(29, 16, 3, 20, TILE.FLOOR);
+        // Central Vertical Corridor: Station Hall (y:41) -> Office Floor (y:21)
+        // 3 tiles wide (x: 36..38)
+        this._fillRect(36, 21, 3, 21, TILE.FLOOR);
 
-        // Central Crossway at y: 24..25
-        // West arm: connects to Hostel central hallway (x: 11)
-        this._fillRect(11, 24, 18, 2, TILE.FLOOR);
-        // East arm: connects to Hospital aisle (x: 40)
-        this._fillRect(32, 24, 9, 2, TILE.FLOOR);
+        // Central Crossway at y: 29..30
+        // West arm: connects to Hostel central hallway (x: 13)
+        this._fillRect(13, 29, 23, 2, TILE.FLOOR);
+        // East arm: connects to Hospital aisle (x: 53)
+        this._fillRect(39, 29, 14, 2, TILE.FLOOR);
 
         // Office Floor North Entrance -> Exit Chamber
-        this._fillRect(28, 4, 4, 2, TILE.DOOR);
+        this._fillRect(35, 5, 5, 3, TILE.DOOR);
 
-        // Office Floor to Flooded Basement short corridor (y: 8..9)
-        this._fillRect(17, 8, 4, 2, TILE.FLOOR);
+        // Office Floor to Flooded Basement short corridor (y: 11..12)
+        this._fillRect(22, 11, 4, 2, TILE.FLOOR);
 
-        // Office Floor to Toilet Pit / Secret Tunnels short corridor (y: 8..9)
-        this._fillRect(38, 8, 4, 2, TILE.FLOOR);
+        // Office Floor to Toilet Pit / Secret Tunnels short corridor (y: 11..12)
+        this._fillRect(50, 11, 3, 2, TILE.FLOOR);
 
         this.rooms.push({
-            x: 28,
-            y: 16,
+            x: 35,
+            y: 21,
             w: 5,
-            h: 19,
+            h: 20,
             type: 'corridor',
             name: 'Central Junction'
         });
@@ -451,63 +524,26 @@ class GameMap {
         // 2. THE QUIET WAYS (Winding, safe, unpatrolled routes)
         // ========================================================
 
-        // --- Quiet Way West: Station Hall to Hostel Corridors ---
-        // Doorway from Station Hall west wall
-        this._fillRect(16, 43, 3, 2, TILE.FLOOR);
-        // Horizontal passage going west
-        this._fillRect(5, 43, 12, 2, TILE.FLOOR);
-        // Utility alcove along the passage
-        this._fillRect(5, 39, 4, 4, TILE.FLOOR);
-        // Vertical passage heading north along western perimeter
-        this._fillRect(5, 31, 2, 13, TILE.FLOOR);
-        // Connecting into bottom of Hostel hallway
-        this._fillRect(6, 31, 5, 2, TILE.FLOOR);
+        // --- Quiet Way West: Station Hall to West Catacombs to Hostel ---
+        this._fillRect(22, 45, 3, 2, TILE.FLOOR); // Station Hall west door
+        this._fillRect(10, 38, 3, 5, TILE.FLOOR); // West Catacombs to Hostel corridor
 
-        this.rooms.push({
-            x: 4,
-            y: 31,
-            w: 13,
-            h: 14,
-            type: 'corridor',
-            name: 'Western Service Tunnel'
-        });
-
-        // --- Quiet Way East: Station Hall to Hospital Wing ---
-        // Doorway from Station Hall east wall
-        this._fillRect(41, 43, 3, 2, TILE.FLOOR);
-        // Horizontal passage going east
-        this._fillRect(43, 43, 11, 2, TILE.FLOOR);
-        // Boiler & Generator alcove
-        this._fillRect(50, 39, 4, 4, TILE.FLOOR);
-        // Vertical passage heading north along eastern perimeter
-        this._fillRect(52, 31, 2, 13, TILE.FLOOR);
-        // Connecting into Hospital aisle
-        this._fillRect(42, 31, 11, 2, TILE.FLOOR);
-
-        this.rooms.push({
-            x: 43,
-            y: 31,
-            w: 13,
-            h: 14,
-            type: 'corridor',
-            name: 'Eastern Maintenance Conduit'
-        });
+        // --- Quiet Way East: Station Hall to East Psychiatric to Hospital ---
+        this._fillRect(51, 45, 3, 2, TILE.FLOOR); // Station Hall east door
+        this._fillRect(53, 38, 3, 5, TILE.FLOOR); // East Crypt to Hospital corridor
 
         // --- Quiet Way Northwest: Hostel Corridors to Flooded Basement ---
-        // Stairwell corridor from top of Hostel (x: 6..8, y: 13..18)
-        this._fillRect(6, 13, 3, 6, TILE.FLOOR);
-        this._fillRect(6, 17, 5, 2, TILE.FLOOR); // connection to Hostel hallway
+        this._fillRect(8, 17, 4, 6, TILE.FLOOR);
 
         // --- Quiet Way Northeast: Hospital Wing to Secret Tunnels ---
-        // Old laundry shaft made of sound-dampening tunnel tiles
-        this._fillRect(52, 13, 3, 6, TILE.TUNNEL);
+        this._fillRect(64, 17, 3, 6, TILE.TUNNEL);
 
         // --- Quiet Exit Crawlways (Bypassing loud Office Floor entirely!) ---
-        // Crawlway 1: Flooded Basement dry walkway (x: 16) directly to Exit Chamber (x: 25)
-        this._fillRect(16, 2, 10, 2, TILE.TUNNEL);
+        // Crawlway 1: Flooded Basement dry walkway (x: 22) directly to Exit Chamber (x: 32)
+        this._fillRect(22, 3, 11, 2, TILE.TUNNEL);
 
-        // Crawlway 2: Secret Tunnels top chamber (x: 48) directly to Exit Chamber (x: 34)
-        this._fillRect(34, 2, 14, 2, TILE.TUNNEL);
+        // Crawlway 2: Secret Tunnels top chamber (x: 62) directly to Exit Chamber (x: 43)
+        this._fillRect(43, 3, 20, 2, TILE.TUNNEL);
     }
 
     // ------------------------------------------------------------
@@ -515,14 +551,14 @@ class GameMap {
     // ------------------------------------------------------------
 
     _setupStones() {
-        // Stone 1: Flooded Basement (Water Stone)
-        this._addStone(8, 7, 1);
+        // Stone 1: Flooded Basement (Water Stone) - deep submerged pit
+        this._addStone(8, 14, 1);
 
-        // Stone 2: Office Floor (Hollow Stone)
-        this._addStone(29, 10, 2);
+        // Stone 2: Office Floor (Hollow Stone) - central executive vault
+        this._addStone(38, 14, 2);
 
-        // Stone 3: Secret Tunnels (Echoing Stone)
-        this._addStone(53, 5, 3);
+        // Stone 3: East Psychiatric Crypt (Echoing Stone) - deep isolation records vault
+        this._addStone(68, 50, 3);
     }
 
     // ------------------------------------------------------------
@@ -531,45 +567,49 @@ class GameMap {
 
     _setupHidingSpots() {
         // Station Hall
-        this._addHidingSpot(21, 40); // Behind ticket counter
-        this._addHidingSpot(39, 44); // Station maintenance booth
-        this._addHidingSpot(35, 36); // Passenger bench alcove
+        this._addHidingSpot(28, 48); // Behind ticket counter
+        this._addHidingSpot(48, 53); // Station maintenance booth
+        this._addHidingSpot(36, 44); // Passenger bench alcove
 
-        // Western Service Tunnel (Quiet Way)
-        this._addHidingSpot(6, 40);  // Service alcove locker
+        // West Catacombs
+        this._addHidingSpot(4, 43);  // Sarcophagus alcove
+        this._addHidingSpot(3, 56);  // Sump pump recess
+        this._addHidingSpot(20, 44); // Catacomb archive locker
 
-        // Eastern Maintenance Conduit (Quiet Way)
-        this._addHidingSpot(53, 40); // Boiler room nook
+        // East Psychiatric Crypt
+        this._addHidingSpot(58, 44); // Padded isolation cell 1
+        this._addHidingSpot(58, 55); // Padded isolation cell 2
+        this._addHidingSpot(71, 46); // Psychiatric records vault cabinet
 
         // Hostel Corridors
-        this._addHidingSpot(3, 19);  // Room 101 wardrobe
-        this._addHidingSpot(3, 23);  // Room 102 under bed
-        this._addHidingSpot(3, 27);  // Room 103 wardrobe
-        this._addHidingSpot(18, 19); // Room 104 under bed
-        this._addHidingSpot(17, 30); // Bathroom stall
+        this._addHidingSpot(3, 23);  // Room 101 wardrobe
+        this._addHidingSpot(3, 29);  // Room 102 under bed
+        this._addHidingSpot(3, 35);  // Room 103 wardrobe
+        this._addHidingSpot(20, 23); // Room 104 under bed
+        this._addHidingSpot(20, 36); // Bathroom stall
 
         // Hospital Wing
-        this._addHidingSpot(47, 19); // Ward A curtained cubicle
-        this._addHidingSpot(47, 31); // Ward B curtained cubicle
-        this._addHidingSpot(56, 19); // Pharmacy supply cabinet
-        this._addHidingSpot(56, 29); // Morgue cold storage drawer
+        this._addHidingSpot(61, 24); // Ward A curtained cubicle
+        this._addHidingSpot(61, 35); // Ward B curtained cubicle
+        this._addHidingSpot(70, 24); // Pharmacy supply cabinet
+        this._addHidingSpot(70, 36); // Morgue cold storage drawer
 
         // Flooded Basement
-        this._addHidingSpot(15, 3);  // Elevated walkway steel locker
-        this._addHidingSpot(3, 11);  // Sump pump control alcove
-        this._addHidingSpot(14, 12); // Drainage pipe nook
+        this._addHidingSpot(21, 3);  // Elevated walkway steel locker
+        this._addHidingSpot(4, 15);  // Sump pump control alcove
+        this._addHidingSpot(18, 15); // Drainage pipe nook
 
         // Office Floor
-        this._addHidingSpot(22, 6);  // Executive wardrobe
-        this._addHidingSpot(37, 6);  // Server rack cabinet
-        this._addHidingSpot(24, 13); // Cubicle under-desk
-        this._addHidingSpot(35, 13); // Filing room closet
+        this._addHidingSpot(28, 8);  // Executive wardrobe
+        this._addHidingSpot(47, 8);  // Server rack cabinet
+        this._addHidingSpot(30, 16); // Cubicle under-desk
+        this._addHidingSpot(44, 16); // Filing room closet
 
         // Toilet Pit & Secret Tunnels
-        this._addHidingSpot(45, 9);  // Restroom stall
-        this._addHidingSpot(55, 3);  // Crawlspace nook
-        this._addHidingSpot(51, 10); // Pipe junction recess
-        this._addHidingSpot(55, 13); // Deep tunnel dead-end
+        this._addHidingSpot(57, 10); // Restroom stall
+        this._addHidingSpot(68, 4);  // Crawlspace nook
+        this._addHidingSpot(64, 12); // Pipe junction recess
+        this._addHidingSpot(71, 15); // Deep tunnel dead-end
     }
 
     // ------------------------------------------------------------
@@ -578,47 +618,54 @@ class GameMap {
 
     _setupItems() {
         // Station Hall
-        this._addItem(23, 40, ITEM_TYPE.BATTERY, { name: 'Flashlight Battery', charge: 40 });
-        this._addItem(30, 38, ITEM_TYPE.THROWABLE, { name: 'Glass Bottle', noise: 0.7 });
-        this._addItem(38, 43, ITEM_TYPE.DIARY_PAGE, { name: 'Station Master Log', page: 1 });
+        this._addItem(29, 48, ITEM_TYPE.BATTERY, { name: 'Flashlight Battery', charge: 40 });
+        this._addItem(37, 44, ITEM_TYPE.THROWABLE, { name: 'Glass Bottle', noise: 0.7 });
+        this._addItem(46, 53, ITEM_TYPE.DIARY_PAGE, { name: 'Station Master Log', page: 1 });
+
+        // West Catacombs
+        this._addItem(5, 43, ITEM_TYPE.BATTERY, { name: 'Catacomb Lantern Battery', charge: 45 });
+        this._addItem(16, 44, ITEM_TYPE.THROWABLE, { name: 'Chiseled Stone Brick', noise: 0.85 });
+        this._addItem(18, 54, ITEM_TYPE.DIARY_PAGE, { name: 'Excavation Record', page: 5 });
+
+        // East Psychiatric Crypt
+        this._addItem(59, 44, ITEM_TYPE.BATTERY, { name: 'Emergency Battery', charge: 45 });
+        this._addItem(69, 46, ITEM_TYPE.DIARY_PAGE, { name: 'Patient Incident Report', page: 6 });
+        this._addItem(70, 56, ITEM_TYPE.KEY, { name: 'Psychiatric Key', doorId: 'psych' });
 
         // Hostel Corridors
-        this._addItem(6, 20, ITEM_TYPE.BATTERY, { name: 'Flashlight Battery', charge: 40 });
-        this._addItem(6, 24, ITEM_TYPE.THROWABLE, { name: 'Empty Soda Can', noise: 0.6 });
-        this._addItem(7, 28, ITEM_TYPE.KEY, { name: 'Hostel Master Key', doorId: 'hostel' });
-        this._addItem(14, 20, ITEM_TYPE.BATTERY, { name: 'Flashlight Battery', charge: 40 });
-        this._addItem(15, 25, ITEM_TYPE.TAPE_RECORDER, { name: 'Cassette Player', tapeId: 'hostel_tape' });
-        this._addItem(17, 25, ITEM_TYPE.DIARY_PAGE, { name: 'Torn Guest Journal', page: 2 });
+        this._addItem(6, 23, ITEM_TYPE.BATTERY, { name: 'Flashlight Battery', charge: 40 });
+        this._addItem(6, 29, ITEM_TYPE.THROWABLE, { name: 'Empty Soda Can', noise: 0.6 });
+        this._addItem(6, 35, ITEM_TYPE.KEY, { name: 'Hostel Master Key', doorId: 'hostel' });
+        this._addItem(17, 23, ITEM_TYPE.BATTERY, { name: 'Flashlight Battery', charge: 40 });
+        this._addItem(18, 30, ITEM_TYPE.TAPE_RECORDER, { name: 'Cassette Player', tapeId: 'hostel_tape' });
+        this._addItem(20, 30, ITEM_TYPE.DIARY_PAGE, { name: 'Torn Guest Journal', page: 2 });
 
         // Hospital Wing
-        this._addItem(43, 21, ITEM_TYPE.BATTERY, { name: 'Flashlight Battery', charge: 40 });
-        this._addItem(43, 29, ITEM_TYPE.THROWABLE, { name: 'Glass Beaker', noise: 0.8 });
-        this._addItem(55, 21, ITEM_TYPE.BATTERY, { name: 'Medical Battery', charge: 50 });
-        this._addItem(51, 20, ITEM_TYPE.DIARY_PAGE, { name: 'Doctor Note', page: 3 });
-        this._addItem(55, 30, ITEM_TYPE.KEY, { name: 'Pharmacy Key', doorId: 'pharmacy' });
+        this._addItem(56, 25, ITEM_TYPE.BATTERY, { name: 'Flashlight Battery', charge: 40 });
+        this._addItem(56, 34, ITEM_TYPE.THROWABLE, { name: 'Glass Beaker', noise: 0.8 });
+        this._addItem(68, 24, ITEM_TYPE.BATTERY, { name: 'Medical Battery', charge: 50 });
+        this._addItem(62, 24, ITEM_TYPE.DIARY_PAGE, { name: 'Doctor Note', page: 3 });
+        this._addItem(68, 36, ITEM_TYPE.KEY, { name: 'Pharmacy Key', doorId: 'pharmacy' });
 
         // Flooded Basement
-        this._addItem(9, 5, ITEM_TYPE.THROWABLE, { name: 'Rusted Iron Pipe', noise: 0.9 });
-        this._addItem(15, 5, ITEM_TYPE.BATTERY, { name: 'Heavy Duty Battery', charge: 50 });
-        this._addItem(4, 8, ITEM_TYPE.KEY, { name: 'Substation Key', doorId: 'basement' });
+        this._addItem(9, 7, ITEM_TYPE.THROWABLE, { name: 'Rusted Iron Pipe', noise: 0.9 });
+        this._addItem(20, 4, ITEM_TYPE.BATTERY, { name: 'Heavy Duty Battery', charge: 50 });
+        this._addItem(5, 10, ITEM_TYPE.KEY, { name: 'Substation Key', doorId: 'basement' });
 
         // Office Floor
-        this._addItem(36, 7, ITEM_TYPE.BATTERY, { name: 'Flashlight Battery', charge: 40 });
-        this._addItem(26, 12, ITEM_TYPE.THROWABLE, { name: 'Ceramic Mug', noise: 0.7 });
-        this._addItem(23, 7, ITEM_TYPE.DIARY_PAGE, { name: 'Executive Memo', page: 4 });
-        this._addItem(34, 15, ITEM_TYPE.BATTERY, { name: 'Flashlight Battery', charge: 40 });
+        this._addItem(45, 9, ITEM_TYPE.BATTERY, { name: 'Flashlight Battery', charge: 40 });
+        this._addItem(31, 15, ITEM_TYPE.THROWABLE, { name: 'Ceramic Mug', noise: 0.7 });
+        this._addItem(29, 9, ITEM_TYPE.DIARY_PAGE, { name: 'Executive Memo', page: 4 });
+        this._addItem(43, 18, ITEM_TYPE.BATTERY, { name: 'Flashlight Battery', charge: 40 });
 
         // Secret Tunnels & Restrooms
-        this._addItem(43, 13, ITEM_TYPE.THROWABLE, { name: 'Heavy Brick', noise: 0.85 });
-        this._addItem(50, 4, ITEM_TYPE.BATTERY, { name: 'Flashlight Battery', charge: 40 });
-        this._addItem(55, 8, ITEM_TYPE.WALKIE_TALKIE, { name: 'Static Receiver', channel: 1 });
-        this._addItem(54, 12, ITEM_TYPE.BATTERY, { name: 'Emergency Battery', charge: 50 });
+        this._addItem(56, 14, ITEM_TYPE.THROWABLE, { name: 'Heavy Brick', noise: 0.85 });
+        this._addItem(65, 4, ITEM_TYPE.BATTERY, { name: 'Flashlight Battery', charge: 40 });
+        this._addItem(71, 10, ITEM_TYPE.WALKIE_TALKIE, { name: 'Static Receiver', channel: 1 });
+        this._addItem(67, 14, ITEM_TYPE.BATTERY, { name: 'Emergency Battery', charge: 50 });
 
-        // Quiet Way Alcoves
-        this._addItem(52, 41, ITEM_TYPE.BATTERY, { name: 'Generator Battery', charge: 45 });
-
-        // Banishment Relic - Hidden in Hospital Wing Altar (x:50, y:25)
-        this.relic = this._addItem(50, 25, ITEM_TYPE.BANISH_RELIC, {
+        // Banishment Relic - Hidden in Hospital Wing Morgue Altar (x:69, y:36)
+        this.relic = this._addItem(69, 36, ITEM_TYPE.BANISH_RELIC, {
             name: 'Banishment Relic',
             desc: 'Press [G] to blast and banish the Listener into dust!'
         });
@@ -630,21 +677,21 @@ class GameMap {
 
     _setupPatrolRoute() {
         const waypoints = [
-            { tx: 30, ty: 34 }, // North junction outside Station Hall
-            { tx: 30, ty: 25 }, // Central Crossway
-            { tx: 40, ty: 25 }, // Hospital Wing entrance
-            { tx: 30, ty: 25 }, // Central Crossway
-            { tx: 12, ty: 25 }, // Hostel Corridors entrance
-            { tx: 30, ty: 25 }, // Central Crossway
-            { tx: 30, ty: 16 }, // Office Floor south entrance
-            { tx: 30, ty: 9 },  // Office central intersection
-            { tx: 18, ty: 9 },  // Flooded Basement threshold
-            { tx: 30, ty: 9 },  // Office central intersection
-            { tx: 41, ty: 9 },  // Toilet Pit / Tunnel threshold
-            { tx: 30, ty: 9 },  // Office central intersection
-            { tx: 30, ty: 16 }, // Office south entrance
-            { tx: 30, ty: 25 }, // Central Crossway
-            { tx: 30, ty: 34 }  // Loop back to Station junction
+            { tx: 37, ty: 40 }, // North junction outside Station Hall
+            { tx: 37, ty: 30 }, // Central Crossway
+            { tx: 53, ty: 30 }, // Hospital Wing entrance
+            { tx: 37, ty: 30 }, // Central Crossway
+            { tx: 13, ty: 30 }, // Hostel Corridors entrance
+            { tx: 37, ty: 30 }, // Central Crossway
+            { tx: 37, ty: 21 }, // Office Floor south entrance
+            { tx: 37, ty: 11 }, // Office central intersection
+            { tx: 23, ty: 11 }, // Flooded Basement threshold
+            { tx: 37, ty: 11 }, // Office central intersection
+            { tx: 51, ty: 11 }, // Toilet Pit / Tunnel threshold
+            { tx: 37, ty: 11 }, // Office central intersection
+            { tx: 37, ty: 21 }, // Office south entrance
+            { tx: 37, ty: 30 }, // Central Crossway
+            { tx: 37, ty: 40 }  // Loop back to Station junction
         ];
 
         this.patrolPoints = waypoints.map(wp => ({

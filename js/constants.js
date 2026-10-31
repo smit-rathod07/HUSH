@@ -136,8 +136,8 @@ const HEARTBEAT_MAX_RATE = 3.0;
 const HEARTBEAT_NOISE_ADD = 0.05;    // noise added per heartbeat when panicked
 
 // Map settings  
-const MAP_WIDTH = 60;   // tiles
-const MAP_HEIGHT = 50;  // tiles
+const MAP_WIDTH = 76;   // tiles (expanded from 60 to 76)
+const MAP_HEIGHT = 62;  // tiles (expanded from 50 to 62)
 
 // Stone settings
 const TOTAL_STONES = 3;

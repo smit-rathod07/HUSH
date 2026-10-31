@@ -180,13 +180,32 @@
 
         <!-- Game Over Screen -->
         <div id="gameOverScreen" class="screen">
+            <!-- Red Horror Corner Spider Webs -->
+            <div class="web-corner web-top-left" aria-hidden="true">
+                <svg viewBox="0 0 100 100">
+                    <path d="M0,0 L100,0 M0,0 L92,38 M0,0 L70,70 M0,0 L38,92 M0,0 L0,100" stroke="#bb1a1a" stroke-width="0.8" fill="none" opacity="0.65"/>
+                    <path d="M25,0 Q23,10 18,18 Q10,23 0,25" stroke="#cc3333" stroke-width="0.6" fill="none" opacity="0.7"/>
+                    <path d="M50,0 Q46,20 35,35 Q20,46 0,50" stroke="#cc3333" stroke-width="0.6" fill="none" opacity="0.7"/>
+                    <path d="M75,0 Q69,30 53,53 Q30,69 0,75" stroke="#cc3333" stroke-width="0.6" fill="none" opacity="0.7"/>
+                    <path d="M100,0 Q92,38 70,70 Q38,92 0,100" stroke="#cc3333" stroke-width="0.6" fill="none" opacity="0.7"/>
+                </svg>
+            </div>
+            <div class="web-corner web-top-right" aria-hidden="true">
+                <svg viewBox="0 0 100 100" style="transform: scaleX(-1);">
+                    <path d="M0,0 L100,0 M0,0 L92,38 M0,0 L70,70 M0,0 L38,92 M0,0 L0,100" stroke="#bb1a1a" stroke-width="0.8" fill="none" opacity="0.65"/>
+                    <path d="M25,0 Q23,10 18,18 Q10,23 0,25" stroke="#cc3333" stroke-width="0.6" fill="none" opacity="0.7"/>
+                    <path d="M50,0 Q46,20 35,35 Q20,46 0,50" stroke="#cc3333" stroke-width="0.6" fill="none" opacity="0.7"/>
+                    <path d="M75,0 Q69,30 53,53 Q30,69 0,75" stroke="#cc3333" stroke-width="0.6" fill="none" opacity="0.7"/>
+                    <path d="M100,0 Q92,38 70,70 Q38,92 0,100" stroke="#cc3333" stroke-width="0.6" fill="none" opacity="0.7"/>
+                </svg>
+            </div>
             <div class="gameover-eyes">
-                <div class="eye left big"></div>
-                <div class="eye right big"></div>
+                <div class="eye left big weeping"></div>
+                <div class="eye right big weeping"></div>
             </div>
             <p class="gameover-text">"Don't leave me..."</p>
-            <p class="gameover-sub">MISSION FAILED</p>
-            <p class="retry-text pulse">Press R to retry</p>
+            <p class="gameover-sub">THE LISTENER CLAIMED ANOTHER SOUL</p>
+            <p class="retry-text pulse">Press [R] to retry</p>
         </div>
 
         <!-- Victory Screen -->

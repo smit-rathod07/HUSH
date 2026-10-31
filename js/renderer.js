@@ -49,12 +49,24 @@ class Renderer {
         this.victoryTimer = 0;
         this.flashbackTimer = 0;
         
+        // Dangerous kill jumpscare state
+        this.jumpscareActive = false;
+        this.jumpscareTimer = 0;
+        this.jumpscareDuration = 1.3;
+        
         // Cached references during render frame
         this.player = null;
         this.map = null;
         this.listener = null;
         
         this.init();
+    }
+    
+    // Trigger the terrifying kill jumpscare sequence
+    triggerKillJumpscare() {
+        this.jumpscareActive = true;
+        this.jumpscareTimer = 0;
+        this.shakeScreen(18.0);
     }
     
     init() {
@@ -116,6 +128,17 @@ class Renderer {
             const phase = audioManager ? (audioManager.calibrationPhase || 0) : 0;
             const level = audioManager ? (audioManager.smoothedLevel || audioManager.noiseBarValue || 0) : 0;
             this.drawCalibration(phase, level);
+            return;
+        }
+        
+        // Kill jumpscare takes priority on screen during death moment
+        if (this.jumpscareActive) {
+            this.jumpscareTimer += dt;
+            const progress = clamp(this.jumpscareTimer / this.jumpscareDuration, 0, 1);
+            this.drawKillJumpscare(this.ctx, this.width, this.height, progress);
+            if (this.jumpscareTimer >= this.jumpscareDuration) {
+                this.jumpscareActive = false;
+            }
             return;
         }
         
@@ -1863,31 +1886,219 @@ class Renderer {
         ctx.fillText(`${Math.round(pct * 100)}%`, batX + batW + 8, batY + batH / 2);
     }
     
-    // Draw proximity warning (heartbeat visual red vignette)
+    // Draw proximity warning (intensive reddish interface + encroaching spider webs)
     drawProximityWarning(listener, player) {
         if (!listener || !player) return;
         
         const d = dist(player.x, player.y, listener.x, listener.y);
-        if (d >= 300) return;
+        const maxWarningDist = 420; // Expanded proximity warning horizon
+        if (d >= maxWarningDist) return;
         
-        const proximityFactor = 1.0 - (d / 300);
-        const heartRate = lerp(HEARTBEAT_BASE_RATE, HEARTBEAT_MAX_RATE, proximityFactor);
-        const heartbeatPulse = Math.pow(Math.sin(this.gameTime * heartRate * Math.PI * 2) * 0.5 + 0.5, 2.5);
-        const vignetteAlpha = (proximityFactor * 0.22) + (heartbeatPulse * proximityFactor * 0.38);
+        const proximityFactor = clamp(1.0 - (d / maxWarningDist), 0, 1);
+        const heartRate = lerp(HEARTBEAT_BASE_RATE, 3.8, proximityFactor);
+        const heartbeatPulse = Math.pow(Math.sin(this.gameTime * heartRate * Math.PI * 2) * 0.5 + 0.5, 2.2);
+        const vignetteAlpha = clamp((proximityFactor * 0.35) + (heartbeatPulse * proximityFactor * 0.52), 0, 0.96);
         
         const ctx = this.ctx;
+        const w = this.width;
+        const h = this.height;
         ctx.save();
         
+        // 1. Intensive pulsating blood-red radial vignette
         const vigGrad = ctx.createRadialGradient(
-            this.width / 2, this.height / 2, Math.min(this.width, this.height) * 0.35,
-            this.width / 2, this.height / 2, Math.max(this.width, this.height) * 0.75
+            w / 2, h / 2, Math.min(w, h) * (0.38 - proximityFactor * 0.16),
+            w / 2, h / 2, Math.max(w, h) * 0.74
         );
-        vigGrad.addColorStop(0.0, 'rgba(180, 0, 0, 0.0)');
-        vigGrad.addColorStop(0.65, `rgba(180, 0, 0, ${vignetteAlpha * 0.35})`);
-        vigGrad.addColorStop(1.0, `rgba(220, 10, 10, ${vignetteAlpha})`);
+        vigGrad.addColorStop(0.0, 'rgba(160, 0, 0, 0.0)');
+        vigGrad.addColorStop(0.55, `rgba(180, 0, 0, ${vignetteAlpha * 0.38})`);
+        vigGrad.addColorStop(0.85, `rgba(220, 10, 10, ${vignetteAlpha * 0.82})`);
+        vigGrad.addColorStop(1.0, `rgba(255, 0, 0, ${vignetteAlpha})`);
         
         ctx.fillStyle = vigGrad;
-        ctx.fillRect(0, 0, this.width, this.height);
+        ctx.fillRect(0, 0, w, h);
+
+        // 2. Capillary veins along screen border at close range
+        if (proximityFactor > 0.25) {
+            this.drawProximityVeins(ctx, w, h, proximityFactor, heartbeatPulse);
+        }
+
+        // 3. Encroaching spider webs spreading inward from all 4 screen corners
+        this.drawProximitySpiderWebs(ctx, w, h, proximityFactor, this.gameTime, heartbeatPulse);
+        
+        ctx.restore();
+    }
+
+    // Draw pulsating capillary blood veins along viewport edges
+    drawProximityVeins(ctx, w, h, proximityFactor, pulse) {
+        const veinAlpha = clamp((proximityFactor - 0.25) / 0.75, 0, 1) * (0.6 + pulse * 0.4);
+        ctx.save();
+        ctx.strokeStyle = `rgba(210, 20, 20, ${veinAlpha * 0.85})`;
+        ctx.lineWidth = 1.6;
+        ctx.lineCap = 'round';
+
+        // Predefined organic root seeds along the 4 borders
+        const veinSeeds = [
+            // Top border
+            { x: w * 0.25, y: 0, dx: 15, dy: 35, len: 45 },
+            { x: w * 0.75, y: 0, dx: -18, dy: 40, len: 50 },
+            // Bottom border
+            { x: w * 0.3, y: h, dx: 20, dy: -40, len: 48 },
+            { x: w * 0.7, y: h, dx: -15, dy: -38, len: 46 },
+            // Left border
+            { x: 0, y: h * 0.35, dx: 35, dy: 10, len: 42 },
+            { x: 0, y: h * 0.65, dx: 38, dy: -12, len: 44 },
+            // Right border
+            { x: w, y: h * 0.35, dx: -35, dy: 12, len: 42 },
+            { x: w, y: h * 0.65, dx: -38, dy: -10, len: 44 }
+        ];
+
+        for (const s of veinSeeds) {
+            const currentLen = s.len * (0.5 + proximityFactor * 0.5);
+            ctx.beginPath();
+            ctx.moveTo(s.x, s.y);
+            const midX = s.x + s.dx * 0.5 + Math.sin(s.x + this.gameTime * 3) * 6;
+            const midY = s.y + s.dy * 0.5 + Math.cos(s.y + this.gameTime * 3) * 6;
+            const endX = s.x + (s.dx / Math.hypot(s.dx, s.dy)) * currentLen;
+            const endY = s.y + (s.dy / Math.hypot(s.dx, s.dy)) * currentLen;
+            ctx.quadraticCurveTo(midX, midY, endX, endY);
+            ctx.stroke();
+
+            // Branch tendril
+            ctx.lineWidth = 0.9;
+            ctx.beginPath();
+            ctx.moveTo(midX, midY);
+            ctx.lineTo(midX + s.dy * 0.35, midY - s.dx * 0.35);
+            ctx.stroke();
+            ctx.lineWidth = 1.6;
+        }
+
+        ctx.restore();
+    }
+
+    // Draw creeping spider webs spreading inward from all screen corners
+    drawProximitySpiderWebs(ctx, w, h, proximityFactor, t, heartbeatPulse) {
+        const webAlpha = clamp(proximityFactor * 0.95 + heartbeatPulse * 0.15, 0, 1);
+        if (webAlpha <= 0.02) return;
+
+        // Reach expands deeper inward as ghost gets closer
+        const maxReach = lerp(60, Math.min(w, h) * 0.54, Math.pow(proximityFactor, 0.8));
+        const numSpokes = 8;
+        const numRings = Math.max(4, Math.floor(lerp(4, 11, proximityFactor)));
+
+        ctx.save();
+
+        // 4 screen corners: [ox, oy, startAngle, endAngle]
+        const corners = [
+            { ox: 0, oy: 0, a1: 0, a2: Math.PI / 2 },                           // Top-Left
+            { ox: w, oy: 0, a1: Math.PI / 2, a2: Math.PI },                   // Top-Right
+            { ox: w, oy: h, a1: Math.PI, a2: 3 * Math.PI / 2 },               // Bottom-Right
+            { ox: 0, oy: h, a1: 3 * Math.PI / 2, a2: Math.PI * 2 }            // Bottom-Left
+        ];
+
+        for (const c of corners) {
+            const spokePoints = []; // [spokeIdx][ringIdx] = {x, y}
+
+            // 1. Draw radiating structural spokes
+            for (let i = 0; i < numSpokes; i++) {
+                const angle = lerp(c.a1, c.a2, i / (numSpokes - 1));
+                const spokeTremor = Math.sin(t * 11 + i * 1.8) * (1.2 + proximityFactor * 3.5) * heartbeatPulse;
+                const spokeLen = maxReach * (0.85 + Math.sin(i * 2.3 + t * 2) * 0.15);
+
+                const ex = c.ox + Math.cos(angle) * spokeLen + Math.sin(angle) * spokeTremor;
+                const ey = c.oy + Math.sin(angle) * spokeLen - Math.cos(angle) * spokeTremor;
+
+                // Base structural silk line
+                ctx.strokeStyle = `rgba(235, 238, 245, ${webAlpha * 0.55})`;
+                ctx.lineWidth = 1.3;
+                ctx.beginPath();
+                ctx.moveTo(c.ox, c.oy);
+                ctx.lineTo(ex, ey);
+                ctx.stroke();
+
+                // Blood-red silk highlight
+                ctx.strokeStyle = `rgba(255, 30, 30, ${webAlpha * (0.35 + proximityFactor * 0.5)})`;
+                ctx.lineWidth = 0.8;
+                ctx.beginPath();
+                ctx.moveTo(c.ox, c.oy);
+                ctx.lineTo(ex, ey);
+                ctx.stroke();
+
+                // Compute ring points along this spoke
+                const ringPts = [];
+                for (let r = 1; r <= numRings; r++) {
+                    const frac = Math.pow(r / numRings, 1.15);
+                    const rx = lerp(c.ox, ex, frac);
+                    const ry = lerp(c.oy, ey, frac);
+                    ringPts.push({ x: rx, y: ry });
+                }
+                spokePoints.push(ringPts);
+            }
+
+            // 2. Draw curved spiral/concentric silk rings connecting adjacent spokes
+            for (let r = 0; r < numRings; r++) {
+                const ringFrac = (r + 1) / numRings;
+                const ringAlpha = webAlpha * (0.45 + ringFrac * 0.45);
+
+                for (let i = 0; i < numSpokes - 1; i++) {
+                    const p1 = spokePoints[i][r];
+                    const p2 = spokePoints[i + 1][r];
+                    if (!p1 || !p2) continue;
+
+                    // Sag slightly inward toward the corner origin like real cobwebs
+                    const midX = (p1.x + p2.x) * 0.5;
+                    const midY = (p1.y + p2.y) * 0.5;
+                    const bow = 0.88; // inward sag factor
+                    const ctrlX = lerp(midX, c.ox, 1.0 - bow);
+                    const ctrlY = lerp(midY, c.oy, 1.0 - bow);
+
+                    // Outer web silk strand
+                    ctx.strokeStyle = `rgba(230, 235, 245, ${ringAlpha * 0.65})`;
+                    ctx.lineWidth = 1.1;
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.quadraticCurveTo(ctrlX, ctrlY, p2.x, p2.y);
+                    ctx.stroke();
+
+                    // Bloody glistening hue
+                    ctx.strokeStyle = `rgba(255, 40, 40, ${ringAlpha * (0.3 + proximityFactor * 0.55)})`;
+                    ctx.lineWidth = 0.7;
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.quadraticCurveTo(ctrlX, ctrlY, p2.x, p2.y);
+                    ctx.stroke();
+
+                    // Dew drop / egg nodule at spoke intersection
+                    if (r % 2 === 0 && Math.random() < 0.25) {
+                        ctx.fillStyle = `rgba(255, 60, 60, ${ringAlpha * 0.8})`;
+                        ctx.beginPath();
+                        ctx.arc(p1.x, p1.y, 1.4, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
+        }
+
+        // 3. Screen edge canopy strings when Listener is extremely close (> 0.65 proximity)
+        if (proximityFactor > 0.65) {
+            const edgeAlpha = (proximityFactor - 0.65) / 0.35 * webAlpha;
+            ctx.strokeStyle = `rgba(240, 240, 250, ${edgeAlpha * 0.55})`;
+            ctx.lineWidth = 1.0;
+
+            // Top edge hanging cobweb drape
+            ctx.beginPath();
+            ctx.moveTo(0, 15);
+            ctx.quadraticCurveTo(w * 0.25, 45 + Math.sin(t * 8) * 4, w * 0.5, 20);
+            ctx.quadraticCurveTo(w * 0.75, 48 + Math.cos(t * 8) * 4, w, 15);
+            ctx.stroke();
+
+            // Bottom edge hanging cobweb drape
+            ctx.beginPath();
+            ctx.moveTo(0, h - 15);
+            ctx.quadraticCurveTo(w * 0.25, h - 45 - Math.sin(t * 8) * 4, w * 0.5, h - 20);
+            ctx.quadraticCurveTo(w * 0.75, h - 48 - Math.cos(t * 8) * 4, w, h - 15);
+            ctx.stroke();
+        }
+
         ctx.restore();
     }
     
@@ -3324,55 +3535,495 @@ class Renderer {
         ctx.fillText('Press SPACE or CLICK when ready', cx, this.height - 40);
     }
     
-    // Draw game over screen
+    // ============================================================
+    // THE DANGEROUS KILL JUMPSCARE
+    // ============================================================
+    // Visceral, terrifying close-up of the cracked porcelain baby doll face
+    // lunging forward into the camera lens with unhinged jaw, razor-sharp
+    // bloody teeth, weeping crimson eyes, clawing porcelain hands,
+    // shattered glass spiderwebs, and lens blood splatters.
+    drawKillJumpscare(ctx, w, h, progress) {
+        ctx.save();
+
+        // 1. Violent camera jitter / glitch shock
+        const shakeAmp = (1.0 - progress * 0.55) * 18;
+        const jx = (Math.random() - 0.5) * shakeAmp;
+        const jy = (Math.random() - 0.5) * shakeAmp;
+        ctx.translate(jx, jy);
+
+        // 2. Background: sudden bloody flash fading into pitch abyss
+        const flashAlpha = progress < 0.18 ? (1.0 - progress / 0.18) : 0;
+        ctx.fillStyle = '#030103';
+        ctx.fillRect(-30, -30, w + 60, h + 60);
+
+        // Visceral blood pool vignette
+        const bloodGrad = ctx.createRadialGradient(w / 2, h / 2, 40, w / 2, h / 2, Math.max(w, h) * 0.76);
+        bloodGrad.addColorStop(0, `rgba(195, 0, 0, ${0.5 * (1.0 - progress * 0.35)})`);
+        bloodGrad.addColorStop(0.55, 'rgba(80, 0, 0, 0.85)');
+        bloodGrad.addColorStop(1, '#020102');
+        ctx.fillStyle = bloodGrad;
+        ctx.fillRect(-30, -30, w + 60, h + 60);
+
+        if (flashAlpha > 0) {
+            ctx.fillStyle = `rgba(255, 30, 30, ${flashAlpha * 0.75})`;
+            ctx.fillRect(-30, -30, w + 60, h + 60);
+        }
+
+        const cx = w / 2;
+        const cy = h / 2 - 20;
+
+        // 3. Zoom / Lunge Scale: The Listener's head explodes toward the camera lens
+        const zoom = lerp(0.85, 1.82, Math.pow(progress, 0.35));
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(zoom, zoom);
+
+        // --- THE CRACKED PORCELAIN BABY DOLL VISAGE ---
+        
+        // A. Head base (Ghostly cracked porcelain baby doll skin)
+        const headW = 142;
+        const headH = 178;
+        
+        // Deep shadow behind head
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, headW + 14, headH + 14, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Porcelain base gradient
+        const skinGrad = ctx.createRadialGradient(-35, -45, 20, 0, 10, headH);
+        skinGrad.addColorStop(0, '#f4eee7');
+        skinGrad.addColorStop(0.45, '#ded2c4');
+        skinGrad.addColorStop(0.82, '#9d8e84');
+        skinGrad.addColorStop(1.0, '#382a27');
+        ctx.fillStyle = skinGrad;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, headW, headH, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Porcelain hairline & subtle baby doll cranium suture
+        ctx.strokeStyle = '#221514';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // B. Shattered Porcelain Cracks & Crevices (oozing crimson blood)
+        ctx.strokeStyle = '#180404';
+        ctx.lineWidth = 2.8;
+        ctx.beginPath();
+        // Forehead fracture split
+        ctx.moveTo(0, -headH + 10);
+        ctx.lineTo(-20, -headH + 55);
+        ctx.lineTo(8, -headH + 90);
+        ctx.lineTo(-14, -42);
+        // Left temple fracture
+        ctx.moveTo(-headW + 15, -45);
+        ctx.lineTo(-65, -20);
+        ctx.lineTo(-42, 12);
+        // Right cheek fracture
+        ctx.moveTo(headW - 20, 15);
+        ctx.lineTo(60, 40);
+        ctx.lineTo(36, 75);
+        ctx.lineTo(15, 120);
+        ctx.stroke();
+
+        // Glowing red fissures beneath cracks
+        ctx.strokeStyle = 'rgba(255, 30, 30, 0.75)';
+        ctx.lineWidth = 1.3;
+        ctx.stroke();
+
+        // Split skull cavity showing glowing crimson flesh/void
+        ctx.fillStyle = '#2b0000';
+        ctx.beginPath();
+        ctx.moveTo(-18, -headH + 25);
+        ctx.lineTo(-6, -headH + 68);
+        ctx.lineTo(12, -headH + 52);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255, 20, 20, 0.85)';
+        ctx.beginPath();
+        ctx.arc(-4, -headH + 46, 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // C. Hollow Cavernous Eye Sockets Weeping Crimson Blood
+        const eyeX = 48;
+        const eyeY = -22;
+        const eyeR = 26;
+
+        for (const sign of [-1, 1]) {
+            const ex = sign * eyeX;
+            // Sunken dark orbital socket
+            ctx.fillStyle = '#060002';
+            ctx.beginPath();
+            ctx.ellipse(ex, eyeY, eyeR, eyeR * 1.15, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#2d0808';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Weeping viscous crimson blood streams running down porcelain cheeks
+            ctx.fillStyle = '#850202';
+            ctx.beginPath();
+            ctx.moveTo(ex - 12, eyeY + eyeR * 0.7);
+            ctx.quadraticCurveTo(ex - 8, eyeY + 65, ex - 16, eyeY + 140);
+            ctx.lineTo(ex - 4, eyeY + 145);
+            ctx.quadraticCurveTo(ex - 2, eyeY + 70, ex + 2, eyeY + eyeR * 0.7);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#ba0808';
+            ctx.beginPath();
+            ctx.moveTo(ex + 4, eyeY + eyeR * 0.6);
+            ctx.quadraticCurveTo(ex + 12, eyeY + 55, ex + 8, eyeY + 125);
+            ctx.lineTo(ex + 14, eyeY + 130);
+            ctx.quadraticCurveTo(ex + 18, eyeY + 60, ex + 14, eyeY + eyeR * 0.6);
+            ctx.closePath();
+            ctx.fill();
+
+            // Burning red laser pupils in the center of hollow black void
+            const glowR = 19;
+            const eyeGlow = ctx.createRadialGradient(ex, eyeY, 1, ex, eyeY, glowR);
+            eyeGlow.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            eyeGlow.addColorStop(0.25, 'rgba(255, 40, 40, 1)');
+            eyeGlow.addColorStop(0.65, 'rgba(255, 0, 0, 0.72)');
+            eyeGlow.addColorStop(1, 'rgba(180, 0, 0, 0)');
+            ctx.fillStyle = eyeGlow;
+            ctx.beginPath();
+            ctx.arc(ex, eyeY, glowR, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Pinpoint pupil center
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(ex, eyeY, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // D. Uncanny Doll Nose
+        ctx.fillStyle = '#9e8c80';
+        ctx.beginPath();
+        ctx.arc(0, 15, 6, 0, Math.PI);
+        ctx.fill();
+        // Nostril holes
+        ctx.fillStyle = '#1c1210';
+        ctx.beginPath();
+        ctx.arc(-4, 18, 2, 0, Math.PI * 2);
+        ctx.arc(4, 18, 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // E. Unhinged Wide Gaping Jaw & Razor-Sharp Bloody Teeth
+        const mouthY = 75;
+        const mouthW = 70;
+        const mouthH = 52 + progress * 22; // jaw drops unnaturally open!
+
+        // Outer mouth cavity
+        ctx.fillStyle = '#050002';
+        ctx.beginPath();
+        ctx.ellipse(0, mouthY, mouthW, mouthH, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // White lips outline
+        ctx.strokeStyle = '#f4ede6';
+        ctx.lineWidth = 4.8;
+        ctx.stroke();
+
+        // Dark throat void
+        ctx.fillStyle = '#180002';
+        ctx.beginPath();
+        ctx.ellipse(0, mouthY, mouthW * 0.76, mouthH * 0.76, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Two rows of razor-sharp needle-teeth coated in glistening red blood!
+        const numTeeth = 11;
+        // Top teeth pointing down
+        for (let i = 0; i < numTeeth; i++) {
+            const tx = lerp(-mouthW * 0.72, mouthW * 0.72, i / (numTeeth - 1));
+            const toothH = 15 + Math.sin((i / numTeeth) * Math.PI) * 9;
+            ctx.fillStyle = '#eae2d8';
+            ctx.beginPath();
+            ctx.moveTo(tx - 3.5, mouthY - mouthH * 0.65);
+            ctx.lineTo(tx + 3.5, mouthY - mouthH * 0.65);
+            ctx.lineTo(tx, mouthY - mouthH * 0.65 + toothH);
+            ctx.closePath();
+            ctx.fill();
+            // Blood tip on tooth
+            ctx.fillStyle = '#d00000';
+            ctx.beginPath();
+            ctx.moveTo(tx - 2, mouthY - mouthH * 0.65 + toothH * 0.45);
+            ctx.lineTo(tx + 2, mouthY - mouthH * 0.65 + toothH * 0.45);
+            ctx.lineTo(tx, mouthY - mouthH * 0.65 + toothH);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // Bottom teeth pointing up
+        for (let i = 0; i < numTeeth; i++) {
+            const tx = lerp(-mouthW * 0.68, mouthW * 0.68, i / (numTeeth - 1));
+            const toothH = 13 + Math.sin((i / numTeeth) * Math.PI) * 8;
+            ctx.fillStyle = '#eae2d8';
+            ctx.beginPath();
+            ctx.moveTo(tx - 3, mouthY + mouthH * 0.7);
+            ctx.lineTo(tx + 3, mouthY + mouthH * 0.7);
+            ctx.lineTo(tx, mouthY + mouthH * 0.7 - toothH);
+            ctx.closePath();
+            ctx.fill();
+            // Blood tip on tooth
+            ctx.fillStyle = '#d00000';
+            ctx.beginPath();
+            ctx.moveTo(tx - 2, mouthY + mouthH * 0.7 - toothH * 0.45);
+            ctx.lineTo(tx + 2, mouthY + mouthH * 0.7 - toothH * 0.45);
+            ctx.lineTo(tx, mouthY + mouthH * 0.7 - toothH);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        ctx.restore(); // end face transform
+
+        // 4. Cracked Porcelain Claws Reaching from Screen Edges
+        this.drawJumpscareClaws(ctx, w, h, progress);
+
+        // 5. Shattered Glass Spiderweb Cracks across the Viewport
+        this.drawShatteredGlass(ctx, w, h, progress);
+
+        // 6. Dripping Blood Splatters & Lens Dirt
+        this.drawLensBloodSplatters(ctx, w, h, progress);
+
+        // 7. Sinister Glitch / VHS Tracking / Subliminal Red Screamer Flash
+        if (Math.random() < 0.4) {
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+            const barY = Math.random() * h;
+            ctx.fillRect(0, barY, w, 14 + Math.random() * 26);
+        }
+
+        ctx.restore();
+    }
+
+    // Draw cracked porcelain doll hands lunging in from bottom corners
+    drawJumpscareClaws(ctx, w, h, progress) {
+        ctx.save();
+        const handIn = lerp(-60, 40, Math.pow(progress, 0.5));
+
+        // Left Hand
+        ctx.save();
+        ctx.translate(handIn, h - 20);
+        ctx.rotate(-0.35);
+        this._renderPorcelainDollHand(ctx);
+        ctx.restore();
+
+        // Right Hand
+        ctx.save();
+        ctx.translate(w - handIn, h - 20);
+        ctx.scale(-1, 1);
+        ctx.rotate(-0.35);
+        this._renderPorcelainDollHand(ctx);
+        ctx.restore();
+
+        ctx.restore();
+    }
+
+    _renderPorcelainDollHand(ctx) {
+        ctx.fillStyle = '#080002';
+        ctx.beginPath();
+        ctx.ellipse(40, 20, 65, 80, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Pale porcelain palm
+        ctx.fillStyle = '#ddd2c4';
+        ctx.beginPath();
+        ctx.ellipse(35, 15, 55, 70, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 4 elongated cracked fingers with red bloody fingernails
+        const fingers = [
+            { x: 10, y: -45, w: 14, h: 65, rot: -0.2 },
+            { x: 30, y: -65, w: 15, h: 80, rot: -0.05 },
+            { x: 52, y: -62, w: 14, h: 75, rot: 0.1 },
+            { x: 72, y: -45, w: 13, h: 60, rot: 0.3 }
+        ];
+
+        for (const f of fingers) {
+            ctx.save();
+            ctx.translate(f.x, f.y);
+            ctx.rotate(f.rot);
+
+            // Porcelain finger segment
+            ctx.fillStyle = '#ded3c5';
+            ctx.fillRect(-f.w / 2, 0, f.w, f.h);
+
+            // Fracture lines
+            ctx.strokeStyle = '#220808';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(-f.w / 2, f.h * 0.4);
+            ctx.lineTo(f.w / 2, f.h * 0.5);
+            ctx.stroke();
+
+            // Sharp crimson claw tip
+            ctx.fillStyle = '#b80000';
+            ctx.beginPath();
+            ctx.moveTo(-f.w / 2, 0);
+            ctx.lineTo(f.w / 2, 0);
+            ctx.lineTo(0, -18);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+    }
+
+    // Draw shattered glass spiderweb fracture lines across the screen
+    drawShatteredGlass(ctx, w, h, progress) {
+        ctx.save();
+        const cx = w / 2;
+        const cy = h / 2 - 20;
+        const alpha = clamp(progress * 1.5, 0, 0.85);
+
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.7})`;
+        ctx.lineWidth = 1.5;
+
+        // Jagged radial fracture lines
+        const numCracks = 12;
+        const maxR = Math.hypot(w, h);
+        for (let i = 0; i < numCracks; i++) {
+            const angle = (i / numCracks) * Math.PI * 2 + 0.15;
+            let curX = cx;
+            let curY = cy;
+            ctx.beginPath();
+            ctx.moveTo(curX, curY);
+
+            const segments = 6;
+            for (let s = 1; s <= segments; s++) {
+                const segR = (s / segments) * maxR * 0.75;
+                const jitterA = angle + (Math.sin(i * 3 + s * 2) * 0.12);
+                curX = cx + Math.cos(jitterA) * segR;
+                curY = cy + Math.sin(jitterA) * segR;
+                ctx.lineTo(curX, curY);
+            }
+            ctx.stroke();
+        }
+
+        // Concentric polygonal stress fractures
+        for (let r = 80; r < maxR * 0.65; r += 75) {
+            ctx.beginPath();
+            for (let i = 0; i <= numCracks; i++) {
+                const angle = (i / numCracks) * Math.PI * 2 + 0.15;
+                const jitterR = r + Math.sin(i * 4) * 15;
+                const px = cx + Math.cos(angle) * jitterR;
+                const py = cy + Math.sin(angle) * jitterR;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+
+    // Draw lens blood splatters and droplets
+    drawLensBloodSplatters(ctx, w, h, progress) {
+        ctx.save();
+        const alpha = clamp(progress * 1.6, 0, 0.95);
+        ctx.fillStyle = `rgba(180, 0, 0, ${alpha})`;
+
+        // Blood splatters fixed pseudo-randomly
+        const splatters = [
+            { x: w * 0.22, y: h * 0.28, r: 24, drip: 55 },
+            { x: w * 0.78, y: h * 0.32, r: 28, drip: 65 },
+            { x: w * 0.15, y: h * 0.65, r: 32, drip: 75 },
+            { x: w * 0.85, y: h * 0.68, r: 26, drip: 50 },
+            { x: w * 0.5, y: h * 0.12, r: 22, drip: 45 },
+            { x: w * 0.38, y: h * 0.82, r: 18, drip: 35 }
+        ];
+
+        for (const s of splatters) {
+            // Main splatter clot
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Downward blood drip
+            const curDrip = s.drip * clamp((progress - 0.15) / 0.85, 0, 1);
+            if (curDrip > 0) {
+                ctx.beginPath();
+                ctx.moveTo(s.x - s.r * 0.4, s.y);
+                ctx.quadraticCurveTo(s.x, s.y + curDrip * 0.7, s.x, s.y + curDrip);
+                ctx.quadraticCurveTo(s.x, s.y + curDrip * 0.7, s.x + s.r * 0.4, s.y);
+                ctx.closePath();
+                ctx.fill();
+
+                // Drip droplet at bottom
+                ctx.beginPath();
+                ctx.arc(s.x, s.y + curDrip + 4, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        ctx.restore();
+    }
+    
+    // Draw game over screen (Terrifying cracked porcelain visage looms in darkness)
     drawGameOver() {
         const ctx = this.ctx;
+        const w = this.width;
+        const h = this.height;
         
-        // Fades completely to black
-        ctx.fillStyle = '#020204';
-        ctx.fillRect(0, 0, this.width, this.height);
+        // Deep abyss
+        ctx.fillStyle = '#020103';
+        ctx.fillRect(0, 0, w, h);
         
-        const cx = this.width / 2;
-        const cy = this.height / 2;
+        const cx = w / 2;
+        const cy = h / 2;
         
-        // The Listener's red eyes appear in the center slowly
-        const eyeAlpha = clamp(this.gameOverTimer / 2.0, 0, 1);
-        const eyePulse = Math.sin(this.gameTime * 4) * 0.2 + 0.8;
-        const eyeOffsets = [-24, 24];
-        
+        // Faint cracked doll face silhouette in the darkness
+        const fadeAlpha = clamp(this.gameOverTimer / 2.0, 0, 1);
         ctx.save();
+        ctx.fillStyle = `rgba(32, 22, 24, ${fadeAlpha * 0.55})`;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy - 45, 110, 140, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // The Listener's weeping red eyes appear in the center
+        const eyePulse = Math.sin(this.gameTime * 4) * 0.2 + 0.8;
+        const eyeOffsets = [-38, 38];
+        
         for (const ex of eyeOffsets) {
-            const glow = ctx.createRadialGradient(cx + ex, cy - 40, 1, cx + ex, cy - 40, 24 * eyePulse);
-            glow.addColorStop(0.0, `rgba(255, 34, 34, ${0.9 * eyeAlpha})`);
-            glow.addColorStop(0.4, `rgba(255, 34, 34, ${0.4 * eyeAlpha})`);
+            const glow = ctx.createRadialGradient(cx + ex, cy - 50, 1, cx + ex, cy - 50, 28 * eyePulse);
+            glow.addColorStop(0.0, `rgba(255, 34, 34, ${0.95 * fadeAlpha})`);
+            glow.addColorStop(0.4, `rgba(255, 34, 34, ${0.45 * fadeAlpha})`);
             glow.addColorStop(1.0, 'rgba(255, 34, 34, 0.0)');
             
             ctx.fillStyle = glow;
             ctx.beginPath();
-            ctx.arc(cx + ex, cy - 40, 24 * eyePulse, 0, Math.PI * 2);
+            ctx.arc(cx + ex, cy - 50, 28 * eyePulse, 0, Math.PI * 2);
             ctx.fill();
             
-            ctx.fillStyle = `rgba(255, 34, 34, ${eyeAlpha})`;
+            ctx.fillStyle = `rgba(255, 255, 255, ${fadeAlpha})`;
             ctx.beginPath();
-            ctx.arc(cx + ex, cy - 40, 3, 0, Math.PI * 2);
+            ctx.arc(cx + ex, cy - 50, 3, 0, Math.PI * 2);
             ctx.fill();
+
+            // Weeping red streaks
+            ctx.fillStyle = `rgba(180, 10, 10, ${fadeAlpha * 0.7})`;
+            ctx.fillRect(cx + ex - 2, cy - 45, 4, 60);
         }
+
+        // Creeping corner cobwebs on defeat screen
+        this.drawProximitySpiderWebs(ctx, w, h, 0.85, this.gameTime, 0.5);
         
         // "Don't leave me..." fades in
-        const textAlpha = clamp((this.gameOverTimer - 1.2) / 1.5, 0, 1);
-        ctx.font = 'italic 26px Georgia, serif';
+        const textAlpha = clamp((this.gameOverTimer - 1.0) / 1.5, 0, 1);
+        ctx.font = 'italic 28px Georgia, serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = `rgba(235, 210, 210, ${textAlpha})`;
-        ctx.fillText("Don't leave me...", cx, cy + 30);
+        ctx.fillStyle = `rgba(245, 215, 215, ${textAlpha})`;
+        ctx.fillText("Don't leave me...", cx, cy + 50);
         
         // "Press R to retry" at bottom
-        const retryAlpha = clamp((this.gameOverTimer - 2.5) / 1.0, 0, 1);
+        const retryAlpha = clamp((this.gameOverTimer - 2.2) / 1.0, 0, 1);
         if (retryAlpha > 0) {
             const pulse = Math.sin(this.gameTime * 4) * 0.25 + 0.75;
-            ctx.font = '14px monospace';
-            ctx.fillStyle = `rgba(180, 195, 210, ${retryAlpha * pulse})`;
-            ctx.fillText('PRESS R TO RETRY', cx, cy + 90);
+            ctx.font = 'bold 15px monospace';
+            ctx.fillStyle = `rgba(240, 70, 70, ${retryAlpha * pulse})`;
+            ctx.fillText('PRESS R TO RETRY', cx, cy + 105);
         }
         
         ctx.restore();

@@ -957,15 +957,18 @@ class Game {
 
     triggerGameOver() {
         this.deathCount++;
+        if (this.renderer && typeof this.renderer.triggerKillJumpscare === 'function') {
+            this.renderer.triggerKillJumpscare();
+        }
         if (this.audio) {
             this.audio.stopAmbient();
             this.audio.stopHorrorMusic();
             this.audio.playDeath();
         }
-        // Brief atmospheric breath before transitioning to origin story cutscene (Trapped branch)
+        // Let the terrifying jumpscare visual play out before transitioning to origin story cutscene
         setTimeout(() => {
             this.startStoryCutscene('defeat');
-        }, 1200);
+        }, 1300);
     }
 
     startStoryCutscene(outcome = 'victory') {
@@ -1071,8 +1074,13 @@ class Game {
                 this.showRoomName(room.name);
             }
 
-            // Footstep sounds
-            if (this.player.isMoving && !this.player.isHiding) {
+            // Footstep sounds & movement tension
+            const movingNow = this.player.isMoving && !this.player.isHiding;
+            if (this.audio && typeof this.audio.setMoving === 'function') {
+                this.audio.setMoving(movingNow);
+            }
+
+            if (movingNow) {
                 this.stepTimer += dt;
                 const interval = this.player.isRunning ? 0.28 : (this.player.isSneaking ? 0.6 : 0.42);
                 if (this.stepTimer >= interval) {
