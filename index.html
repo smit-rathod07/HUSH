@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HUSH</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤫</text></svg>">
+</head>
+<body>
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Overlay UI -->
+    <div id="overlay" class="overlay">
+        <!-- Main Menu -->
+        <div id="menuScreen" class="screen active">
+            <div class="menu-eyes">
+                <div class="eye left"></div>
+                <div class="eye right"></div>
+            </div>
+            <h1 class="game-title">HUSH</h1>
+            <p class="subtitle">The loudest thing in the room is you.</p>
+            <div class="menu-divider"></div>
+            <p class="instruction pulse">Click anywhere to begin</p>
+            <div class="controls-hint">
+                <p>🎙️ <b>Microphone</b> detects voice &bull; 🎧 Headphones recommended</p>
+                <p>Key shortcuts: <b>V</b> (Hold to speak) &bull; <b>1</b> Whisper &bull; <b>2</b> Talk &bull; <b>3</b> Scream</p>
+            </div>
+            <div class="controls-pill-list">
+                <span class="pill"><b>WASD</b> Move</span>
+                <span class="pill"><b>Shift</b> Run</span>
+                <span class="pill"><b>C</b> Sneak</span>
+                <span class="pill"><b>Space</b> Hold Breath</span>
+                <span class="pill"><b>F</b> Flashlight</span>
+                <span class="pill"><b>E</b> Interact / Pick up</span>
+                <span class="pill"><b>H</b> Hide</span>
+                <span class="pill"><b>Left Click</b> Throw Distraction</span>
+            </div>
+        </div>
+
+        <!-- Calibration Screen -->
+        <div id="calibrationScreen" class="screen">
+            <h2 class="calibration-title">Calibrate Your Voice</h2>
+            <p id="calibrationInstruction" class="calibration-instruction">
+                Get ready...
+            </p>
+            <div class="calibration-bar-container">
+                <div id="calibrationBar" class="calibration-bar"></div>
+            </div>
+            <p id="calibrationPhase" class="calibration-phase"></p>
+            <div class="calibration-steps">
+                <span id="step1" class="step">Whisper</span>
+                <span class="step-arrow">→</span>
+                <span id="step2" class="step">Talk</span>
+                <span class="step-arrow">→</span>
+                <span id="step3" class="step">Shout</span>
+            </div>
+            <button id="skipCalibration" class="skip-btn">Skip Calibration</button>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameOverScreen" class="screen">
+            <div class="gameover-eyes">
+                <div class="eye left big"></div>
+                <div class="eye right big"></div>
+            </div>
+            <p class="gameover-text">"Don't leave me..."</p>
+            <p class="gameover-sub">MISSION FAILED</p>
+            <p class="retry-text pulse">Press R to retry</p>
+        </div>
+
+        <!-- Victory Screen -->
+        <div id="victoryScreen" class="screen">
+            <h1 class="victory-title">Silence.</h1>
+            <p class="victory-text">
+                His red eyes faded to dark, quiet brown.<br>
+                The doll form cracked, and the shape of a tired, gentle man<br>
+                appeared for one breath before he turned to light.
+            </p>
+            <p class="victory-sub">You escaped.</p>
+            <p class="retry-text pulse">Press R to play again</p>
+        </div>
+    </div>
+
+    <!-- Loading indicator -->
+    <div id="loading" class="loading">
+        <div class="loading-spinner"></div>
+        <p>Entering the silence...</p>
+    </div>
+
+    <!-- Scripts (order matters) -->
+    <script src="js/constants.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/entities.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
