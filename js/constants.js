@@ -23,7 +23,8 @@ const GAME_STATE = {
     GAME_OVER: 3,
     VICTORY: 4,
     FLASHBACK: 5,
-    ESCAPED: 6
+    ESCAPED: 6,
+    CUTSCENE: 7
 };
 
 const LISTENER_STATE = {
@@ -121,7 +122,10 @@ const LISTENER_HUNT_SPEED = 140;
 const LISTENER_INVESTIGATE_SPEED = 80;
 const LISTENER_HEARING_RANGE = 600;      // pixels
 const LISTENER_NEAR_BLIND_RANGE = 80;    // pixels - can barely see this close
-const LISTENER_HUNT_DURATION = 10000;    // 10 seconds (exact user requirement: run behind player for up to 10 seconds then stop)
+const LISTENER_HUNT_MIN_CHASE = 5000;    // Follows player for at least 5 seconds
+const LISTENER_HUNT_ESCAPE_DIST = 180;   // After 5s, if player is far away (> 180px, ~6 tiles), ghost stops chasing
+const LISTENER_HUNT_MAX_DURATION = 10000;// Max chase ceiling if player stays very close (10s)
+const LISTENER_HUNT_DURATION = 5000;     // 5 seconds default
 const LISTENER_COOL_DURATION = 5000;     // ms
 const LISTENER_INVESTIGATE_PATIENCE = 6000; // ms before giving up
 
@@ -140,8 +144,8 @@ const TOTAL_STONES = 3;
 const STONE_HUM_BASE = 0.02;      // base noise from carrying a stone
 const STONE_HUM_PER_STONE = 0.03; // additional noise per extra stone
 
-// Danger line reduction by diamonds/stones (1/50 per qualifying player)
-const DIAMOND_REDUCTION_FRACTION = 1 / 50; // 0.02 reduction fraction
+// Danger line reduction by diamonds/stones (very subtle so normal conversations remain completely safe)
+const DIAMOND_REDUCTION_FRACTION = 0.005; // 0.005 (0.5%) per qualifying player holding >= 2 diamonds
 
 // Proximity Voice Chat Settings
 const PROXIMITY_MIN_DISTANCE = 120; // pixels: full volume

@@ -1036,7 +1036,8 @@ class Listener {
                 
             case LISTENER_STATE.HUNT:
                 this.speed = LISTENER_HUNT_SPEED;
-                this.huntTimer = LISTENER_HUNT_DURATION; // 4000 ms
+                this.huntElapsed = 0;
+                this.huntTimer = (typeof LISTENER_HUNT_MIN_CHASE !== 'undefined') ? LISTENER_HUNT_MIN_CHASE : 5000;
                 this.huntPathTimer = 0;
                 this.alertLevel = 1.0;
                 if (typeof window !== 'undefined' && window.audioManager && typeof window.audioManager.startChase === 'function') {
@@ -1184,12 +1185,8 @@ class Listener {
      */
     updateHunt(dt, map, player) {
         this.speed = LISTENER_HUNT_SPEED;
+        this.huntElapsed = (this.huntElapsed || 0) + dt;
         this.huntTimer -= dt * 1000;
-        
-        if (this.huntTimer <= 0) {
-            this.enterState(LISTENER_STATE.COOL);
-            return;
-        }
         
         const target = this.huntTarget || player;
         if (!target || !target.alive) {
@@ -1210,6 +1207,22 @@ class Listener {
         if (target.isHiding && d > 60) {
             this.enterState(LISTENER_STATE.COOL);
             return;
+        }
+
+        // 5-second chase rule:
+        // Follows the player for at least 5 seconds.
+        // After 5 seconds, if the player's location is far away (> 180px, ~6 tiles), he stops chasing!
+        if (this.huntElapsed >= 5.0) {
+            const escapeDist = (typeof LISTENER_HUNT_ESCAPE_DIST !== 'undefined') ? LISTENER_HUNT_ESCAPE_DIST : 180;
+            if (d > escapeDist) {
+                this.enterState(LISTENER_STATE.COOL);
+                return;
+            }
+            // Maximum chase ceiling if player stays very close (10s)
+            if (this.huntElapsed >= 10.0) {
+                this.enterState(LISTENER_STATE.COOL);
+                return;
+            }
         }
         
         // Update path to player every 0.5 seconds

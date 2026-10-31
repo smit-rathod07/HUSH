@@ -1649,11 +1649,11 @@ class Renderer {
 
         // Small clear danger label above the line
         ctx.font = 'bold 8px monospace';
-        if (redLinePct < 0.358) {
-            ctx.fillStyle = '#ff8833';
+        if (redLinePct < 0.359) {
+            ctx.fillStyle = '#ffaa44';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
-            ctx.fillText(`▼ DANGER LINE (${Math.round(redLinePct * 100)}% 💎 -1/50)`, redLineX, barY - 3);
+            ctx.fillText(`▼ DANGER LINE (${(redLinePct * 100).toFixed(1)}% 💎)`, redLineX, barY - 3);
         } else {
             ctx.fillStyle = COLORS.RED_LINE_COLOR;
             ctx.textAlign = 'center';

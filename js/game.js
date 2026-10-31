@@ -71,6 +71,9 @@ class Game {
 
         // Multiplayer Networking
         this.network = null;
+
+        // Origin Story Cutscene
+        this.cutscene = (typeof StoryCutscene !== 'undefined') ? new StoryCutscene() : null;
     }
 
     async init() {
@@ -84,6 +87,11 @@ class Game {
         // Create audio manager
         this.audio = new AudioManager();
         window.audioManager = this.audio;
+
+        // Create cutscene system
+        if (!this.cutscene && typeof StoryCutscene !== 'undefined') {
+            this.cutscene = new StoryCutscene();
+        }
 
         // Create network manager
         if (typeof NetworkManager !== 'undefined') {
@@ -358,6 +366,19 @@ class Game {
         if (e.repeat) return;
         this.keysJustPressed[e.code] = true;
 
+        // Cutscene navigation (Space / Enter / N to advance, Escape to skip)
+        if (this.state === GAME_STATE.CUTSCENE) {
+            if (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyN') {
+                if (this.cutscene) this.cutscene.nextSlide();
+            } else if (e.code === 'Escape') {
+                if (this.cutscene) this.cutscene.skip();
+            }
+            if (['Space', 'Enter', 'Escape'].includes(e.code)) {
+                e.preventDefault();
+            }
+            return;
+        }
+
         switch (e.code) {
             case 'KeyW': case 'ArrowUp':    this.input.up = true; break;
             case 'KeyS': case 'ArrowDown':  this.input.down = true; break;
@@ -452,6 +473,10 @@ class Game {
 
     onClick(e) {
         if (e && e.target && (e.target.closest('button') || e.target.closest('input') || e.target.closest('.modal-box') || e.target.closest('.modal-overlay'))) {
+            return;
+        }
+        if (this.state === GAME_STATE.CUTSCENE) {
+            if (this.cutscene) this.cutscene.nextSlide();
             return;
         }
         if (this.state === GAME_STATE.MENU) {
@@ -618,6 +643,7 @@ class Game {
 
     restart() {
         this.state = GAME_STATE.MENU;
+        if (this.cutscene) this.cutscene.active = false;
         this.calibrationPhase = 0;
         this.flashbackStoneId = -1;
         this.finalEscapeActive = false;
@@ -895,38 +921,73 @@ class Game {
         }
     }
 
-    // ---- Victory / Game Over ----
+    // ---- Victory / Game Over / Origin Story Cutscene ----
 
     triggerVictory() {
-        this.state = GAME_STATE.VICTORY;
         if (this.audio) {
             this.audio.stopAmbient();
             this.audio.stopHorrorMusic();
-            this.audio.playVictoryMusic();
         }
         if (this.network) {
             this.network.broadcastAction('PLAYER_ESCAPED', {
                 senderName: this.network.localPlayerName
             });
         }
-        this.showScreen('victoryScreen');
-        const overlay = document.getElementById('overlay');
-        if (overlay) overlay.style.pointerEvents = '';
+        // Launch the tragic origin story cutscene (Redemption branch)
+        this.startStoryCutscene('victory');
     }
 
     triggerGameOver() {
-        this.state = GAME_STATE.GAME_OVER;
         this.deathCount++;
         if (this.audio) {
             this.audio.stopAmbient();
             this.audio.stopHorrorMusic();
             this.audio.playDeath();
         }
+        // Brief atmospheric breath before transitioning to origin story cutscene (Trapped branch)
         setTimeout(() => {
-            this.showScreen('gameOverScreen');
-            const overlay = document.getElementById('overlay');
-            if (overlay) overlay.style.pointerEvents = '';
-        }, 500);
+            this.startStoryCutscene('defeat');
+        }, 1200);
+    }
+
+    startStoryCutscene(outcome = 'victory') {
+        this.state = GAME_STATE.CUTSCENE;
+        this.hideAllScreens();
+        const overlay = document.getElementById('overlay');
+        if (overlay) overlay.style.pointerEvents = 'none';
+
+        if (this.cutscene) {
+            this.cutscene.start(outcome, () => {
+                if (outcome === 'victory') {
+                    this.showVictoryScreen();
+                } else {
+                    this.showGameOverScreen();
+                }
+            });
+        } else {
+            if (outcome === 'victory') {
+                this.showVictoryScreen();
+            } else {
+                this.showGameOverScreen();
+            }
+        }
+    }
+
+    showVictoryScreen() {
+        this.state = GAME_STATE.VICTORY;
+        if (this.audio) {
+            this.audio.playVictoryMusic();
+        }
+        this.showScreen('victoryScreen');
+        const overlay = document.getElementById('overlay');
+        if (overlay) overlay.style.pointerEvents = '';
+    }
+
+    showGameOverScreen() {
+        this.state = GAME_STATE.GAME_OVER;
+        this.showScreen('gameOverScreen');
+        const overlay = document.getElementById('overlay');
+        if (overlay) overlay.style.pointerEvents = '';
     }
 
     // ---- Main Game Loop ----
@@ -954,6 +1015,9 @@ class Game {
                 break;
             case GAME_STATE.FLASHBACK:
                 this.updateFlashback(this.dt);
+                break;
+            case GAME_STATE.CUTSCENE:
+                if (this.cutscene) this.cutscene.update(this.dt);
                 break;
         }
 
@@ -1092,6 +1156,14 @@ class Game {
 
     render() {
         if (!this.renderer) return;
+
+        // Render cinematic origin story cutscene
+        if (this.state === GAME_STATE.CUTSCENE) {
+            if (this.cutscene) {
+                this.cutscene.render(this.renderer.ctx, this.canvas.width, this.canvas.height);
+            }
+            return;
+        }
 
         // Multi-state rendering handled through renderer
         this.renderer.render(
