@@ -62,6 +62,9 @@ class Game {
         this.finalEscapeActive = false;
         this.finalEscapeTimer = 0;
 
+        // Map overlay toggle
+        this.showFullMap = false;
+
         // Game stats
         this.playTime = 0;
         this.deathCount = 0;
@@ -144,15 +147,26 @@ class Game {
             case 'ShiftLeft': case 'ShiftRight': this.input.run = true; break;
             case 'ControlLeft': case 'KeyC': this.input.sneak = true; break;
             case 'Space': this.input.breath = true; break;
-            case 'KeyV': this.input.talk = true; break; // Push to talk simulation
+            case 'KeyV':
+                this.input.talk = true;
+                if (this.audio && !this.audio.micActive) this.audio.simulateMicLevel(0.40);
+                break;
             case 'Digit1': // Simulate Whisper
-                if (this.audio) this.audio.simulateMicLevel(0.25);
+                if (this.audio) this.audio.simulateMicLevel(0.12);
                 break;
             case 'Digit2': // Simulate Normal Talk
-                if (this.audio) this.audio.simulateMicLevel(0.48);
+                if (this.audio) this.audio.simulateMicLevel(0.24);
                 break;
             case 'Digit3': // Simulate Loud Shout / Laugh
-                if (this.audio) this.audio.simulateMicLevel(0.9);
+                if (this.audio) this.audio.simulateMicLevel(0.55);
+                break;
+            case 'KeyM':
+                this.toggleFullMap();
+                break;
+            case 'Escape':
+                if (this.showFullMap) {
+                    this.toggleFullMap();
+                }
                 break;
         }
 
@@ -360,6 +374,8 @@ class Game {
         this.ambientEventTimer = 0;
         this.nextAmbientEventTime = randomFloat(10, 20);
         this.finalEscapeActive = false;
+        this.showFullMap = false;
+        if (this.renderer) this.renderer.showFullMap = false;
 
         // Hide overlay screens
         this.hideAllScreens();
@@ -376,6 +392,8 @@ class Game {
         this.calibrationPhase = 0;
         this.flashbackStoneId = -1;
         this.finalEscapeActive = false;
+        this.showFullMap = false;
+        if (this.renderer) this.renderer.showFullMap = false;
         this.currentRoomName = '';
         this.lastRoomName = '';
         this.hintText = '';
@@ -513,6 +531,14 @@ class Game {
                 // Distract the Listener to the landing spot!
                 this.listener.hearSound(thrown.x, thrown.y, 0.85);
             }
+        }
+    }
+
+    toggleFullMap() {
+        if (this.state !== GAME_STATE.PLAYING) return;
+        this.showFullMap = !this.showFullMap;
+        if (this.renderer) {
+            this.renderer.showFullMap = this.showFullMap;
         }
     }
 

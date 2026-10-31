@@ -43,6 +43,7 @@ class Renderer {
         this.roomNameDuration = 3.5;
         this.hintText = '';
         this.hintAlpha = 0;
+        this.showFullMap = false;
         
         this.gameOverTimer = 0;
         this.victoryTimer = 0;
@@ -321,80 +322,59 @@ class Renderer {
                 
                 switch (tile) {
                     case TILE.WALL: {
-                        // Raised wall block
-                        ctx.fillStyle = COLORS.WALL;
-                        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-                        
-                        // Subtle top & left edge highlights
-                        ctx.strokeStyle = COLORS.WALL_EDGE;
-                        ctx.lineWidth = 1.5;
-                        ctx.beginPath();
-                        ctx.moveTo(px, py + TILE_SIZE);
-                        ctx.lineTo(px, py);
-                        ctx.lineTo(px + TILE_SIZE, py);
-                        ctx.stroke();
-                        
-                        // Bottom & right dark shadow
-                        ctx.strokeStyle = '#0d0d18';
-                        ctx.lineWidth = 1.5;
-                        ctx.beginPath();
-                        ctx.moveTo(px + TILE_SIZE, py);
-                        ctx.lineTo(px + TILE_SIZE, py + TILE_SIZE);
-                        ctx.lineTo(px, py + TILE_SIZE);
-                        ctx.stroke();
+                        this.drawWallTile(ctx, map, tx, ty, px, py);
                         break;
                     }
                     
                     case TILE.FLOOR: {
                         // Varied dark floor pattern using coordinate hash
                         const hash = ((tx * 7 + ty * 13) % 3);
-                        if (hash === 0) {
-                            ctx.fillStyle = COLORS.FLOOR;
-                        } else if (hash === 1) {
-                            ctx.fillStyle = COLORS.FLOOR_ALT;
-                        } else {
-                            ctx.fillStyle = '#11192e';
-                        }
+                        ctx.fillStyle = hash === 0 ? COLORS.FLOOR : (hash === 1 ? COLORS.FLOOR_ALT : '#1a2238');
                         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
                         
-                        // Subtle tile border seams
-                        ctx.strokeStyle = 'rgba(5, 10, 20, 0.35)';
+                        // Clear subtle tile border seams
+                        ctx.strokeStyle = COLORS.FLOOR_GRID || 'rgba(70, 95, 140, 0.25)';
                         ctx.lineWidth = 0.5;
                         ctx.strokeRect(px + 0.5, py + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
                         break;
                     }
                     
                     case TILE.WATER: {
-                        // Dark water tile base
+                        // High-contrast deep water tile base
                         ctx.fillStyle = COLORS.WATER;
                         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+
+                        // Subtle animated water edge outline
+                        ctx.strokeStyle = 'rgba(40, 110, 180, 0.35)';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
                         break;
                     }
                     
                     case TILE.LOUD_FLOOR: {
-                        // Slightly warmer dark floor with creaky cracks
+                        // Warmer dark creaky floor with wooden plank separators
                         ctx.fillStyle = COLORS.LOUD_FLOOR;
                         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
                         
-                        // Subtle crack lines
-                        ctx.strokeStyle = 'rgba(10, 8, 6, 0.55)';
+                        // Distinct wooden plank lines
+                        ctx.strokeStyle = COLORS.LOUD_FLOOR_PLANK || '#523722';
+                        ctx.lineWidth = 1.2;
+                        ctx.beginPath();
+                        ctx.moveTo(px, py + 10); ctx.lineTo(px + TILE_SIZE, py + 10);
+                        ctx.moveTo(px, py + 21); ctx.lineTo(px + TILE_SIZE, py + 21);
+                        ctx.stroke();
+
+                        // Crack lines
+                        ctx.strokeStyle = '#1b120a';
                         ctx.lineWidth = 1;
                         ctx.beginPath();
                         const crackType = ((tx * 11 + ty * 17) % 3);
                         if (crackType === 0) {
-                            ctx.moveTo(px + 4, py + 6);
-                            ctx.lineTo(px + 14, py + 16);
-                            ctx.lineTo(px + 26, py + 14);
-                            ctx.moveTo(px + 14, py + 16);
-                            ctx.lineTo(px + 18, py + 26);
+                            ctx.moveTo(px + 4, py + 5); ctx.lineTo(px + 14, py + 16); ctx.lineTo(px + 26, py + 14);
                         } else if (crackType === 1) {
-                            ctx.moveTo(px + 6, py + 24);
-                            ctx.lineTo(px + 16, py + 12);
-                            ctx.lineTo(px + 28, py + 8);
+                            ctx.moveTo(px + 6, py + 24); ctx.lineTo(px + 16, py + 12); ctx.lineTo(px + 28, py + 8);
                         } else {
-                            ctx.moveTo(px + 14, py + 3);
-                            ctx.lineTo(px + 12, py + 15);
-                            ctx.lineTo(px + 20, py + 28);
+                            ctx.moveTo(px + 14, py + 3); ctx.lineTo(px + 12, py + 15); ctx.lineTo(px + 20, py + 28);
                         }
                         ctx.stroke();
                         break;
@@ -405,12 +385,13 @@ class Renderer {
                         ctx.fillStyle = COLORS.TUNNEL;
                         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
                         
-                        ctx.strokeStyle = 'rgba(6, 6, 12, 0.7)';
+                        ctx.strokeStyle = COLORS.TUNNEL_GRATE || 'rgba(80, 60, 120, 0.4)';
                         ctx.lineWidth = 1;
                         ctx.beginPath();
                         ctx.moveTo(px, py + 8); ctx.lineTo(px + TILE_SIZE, py + 8);
                         ctx.moveTo(px, py + 16); ctx.lineTo(px + TILE_SIZE, py + 16);
                         ctx.moveTo(px, py + 24); ctx.lineTo(px + TILE_SIZE, py + 24);
+                        ctx.moveTo(px + 16, py); ctx.lineTo(px + 16, py + TILE_SIZE);
                         ctx.stroke();
                         break;
                     }
@@ -420,35 +401,39 @@ class Renderer {
                         ctx.fillStyle = COLORS.FLOOR_ALT;
                         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
                         
-                        // Doorway frame & wooden door leaf
+                        // Doorway frame & rich wooden door leaf
                         ctx.fillStyle = COLORS.DOOR;
-                        ctx.fillRect(px + 3, py + 3, TILE_SIZE - 6, TILE_SIZE - 6);
+                        ctx.fillRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
                         
-                        ctx.strokeStyle = '#1b1b11';
-                        ctx.lineWidth = 1;
-                        ctx.strokeRect(px + 3, py + 3, TILE_SIZE - 6, TILE_SIZE - 6);
+                        ctx.strokeStyle = COLORS.DOOR_EDGE || '#996339';
+                        ctx.lineWidth = 1.5;
+                        ctx.strokeRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
                         
-                        // Small brass doorknob
-                        ctx.fillStyle = '#6b582b';
+                        // Bright gleaming brass doorknob
+                        ctx.fillStyle = COLORS.DOOR_HANDLE || '#e0b33b';
                         ctx.beginPath();
-                        ctx.arc(px + TILE_SIZE - 7, py + TILE_SIZE / 2, 2, 0, Math.PI * 2);
+                        ctx.arc(px + TILE_SIZE - 7, py + TILE_SIZE / 2, 2.5, 0, Math.PI * 2);
                         ctx.fill();
                         break;
                     }
                     
                     case TILE.EXIT: {
-                        // Exit threshold with subtle eerie greenish glow
-                        ctx.fillStyle = '#0a1a15';
+                        // Exit threshold with vibrant eerie greenish glow
+                        ctx.fillStyle = '#0d2b22';
                         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
                         
                         ctx.strokeStyle = COLORS.EXIT_GLOW;
-                        ctx.lineWidth = 1.5;
-                        ctx.strokeRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(px + 3, py + 3, TILE_SIZE - 6, TILE_SIZE - 6);
+
+                        // Pulsing exit beacon square
+                        const exitPulse = Math.sin(this.gameTime * 4) * 0.3 + 0.7;
+                        ctx.fillStyle = `rgba(51, 255, 170, ${exitPulse * 0.4})`;
+                        ctx.fillRect(px + 6, py + 6, TILE_SIZE - 12, TILE_SIZE - 12);
                         break;
                     }
                     
                     default: {
-                        // Fallback floor for stone, hiding spot, etc.
                         ctx.fillStyle = COLORS.FLOOR;
                         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
                         break;
@@ -458,7 +443,160 @@ class Renderer {
         }
     }
     
-    // Draw water effects (shimmer, ripples)
+    // Draw walls and specialized internal room obstacles with rich color and depth
+    drawWallTile(ctx, map, tx, ty, px, py) {
+        // Detect room context
+        const room = map.getRoom ? map.getRoom(px + TILE_SIZE / 2, py + TILE_SIZE / 2) : null;
+        const roomName = room ? (room.name || '').toLowerCase() : '';
+
+        // Check if neighboring cardinal tiles are open/walkable
+        const northOpen = ty > 0 && map.getTile(tx, ty - 1) !== TILE.WALL;
+        const southOpen = ty < (map.height || MAP_HEIGHT) - 1 && map.getTile(tx, ty + 1) !== TILE.WALL;
+        const westOpen = tx > 0 && map.getTile(tx - 1, ty) !== TILE.WALL;
+        const eastOpen = tx < (map.width || MAP_WIDTH) - 1 && map.getTile(tx + 1, ty) !== TILE.WALL;
+        const isInternalObstacle = room && (northOpen || southOpen || westOpen || eastOpen);
+
+        // 1. Hospital Wing Obstacles: Medical Gurneys & Hospital Beds
+        if (isInternalObstacle && (roomName.includes('hospital') || roomName.includes('ward') || roomName.includes('morgue'))) {
+            // Steel frame
+            ctx.fillStyle = COLORS.OBSTACLE_BED || '#5f7394';
+            ctx.fillRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+            
+            // Clean white/cream sheet
+            ctx.fillStyle = COLORS.OBSTACLE_BED_SHEET || '#d2dce8';
+            ctx.fillRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+
+            // Pillow top
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(px + 5, py + 5, TILE_SIZE - 10, 6);
+
+            ctx.strokeStyle = '#38465c';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+            return;
+        }
+
+        // 2. Office Floor Obstacles: Executive Desks & Cubicle Dividers
+        if (isInternalObstacle && roomName.includes('office')) {
+            ctx.fillStyle = COLORS.OBSTACLE_DESK || '#78482a';
+            ctx.fillRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+
+            ctx.fillStyle = COLORS.OBSTACLE_DESK_EDGE || '#b06f43';
+            ctx.fillRect(px + 3, py + 3, TILE_SIZE - 6, 5);
+
+            // Brass desk corner studs
+            ctx.fillStyle = '#d4a237';
+            ctx.fillRect(px + 2, py + 2, 3, 3);
+            ctx.fillRect(px + TILE_SIZE - 5, py + 2, 3, 3);
+
+            ctx.strokeStyle = '#3d2010';
+            ctx.lineWidth = 1.2;
+            ctx.strokeRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+            return;
+        }
+
+        // 3. Station Concourse Obstacles: Turnstiles & Architectural Pillars
+        if (isInternalObstacle && (roomName.includes('station') || roomName.includes('concourse'))) {
+            if (ty >= 40 && ty <= 42) {
+                // Subway Turnstiles with yellow warning hazard stripes
+                ctx.fillStyle = COLORS.OBSTACLE_TURNSTILE || '#68788c';
+                ctx.fillRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+
+                ctx.strokeStyle = COLORS.OBSTACLE_TURNSTILE_STRIPE || '#e0ae36';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(px + 4, py + 14); ctx.lineTo(px + 14, py + 4);
+                ctx.moveTo(px + 10, py + TILE_SIZE - 4); ctx.lineTo(px + TILE_SIZE - 4, py + 10);
+                ctx.stroke();
+
+                ctx.strokeStyle = '#27313d';
+                ctx.lineWidth = 1.2;
+                ctx.strokeRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+                return;
+            } else {
+                // Heavy Support Pillars
+                ctx.fillStyle = COLORS.OBSTACLE_PILLAR || '#4f5678';
+                ctx.fillRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+
+                ctx.fillStyle = COLORS.OBSTACLE_PILLAR_EDGE || '#8590bd';
+                ctx.fillRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+
+                ctx.strokeStyle = '#252a3d';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+                return;
+            }
+        }
+
+        // 4. Flooded Basement Obstacles: Pump Machinery & Iron Pipes
+        if (isInternalObstacle && roomName.includes('basement')) {
+            ctx.fillStyle = COLORS.OBSTACLE_PUMP || '#61432f';
+            ctx.fillRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+
+            ctx.fillStyle = COLORS.OBSTACLE_PUMP_PIPE || '#966a4a';
+            ctx.beginPath();
+            ctx.arc(px + TILE_SIZE / 2, py + TILE_SIZE / 2, 7, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#2d1b0f';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+            return;
+        }
+
+        // 5. Hostel Corridors Obstacles: Bunk Beds & Coffee Tables
+        if (isInternalObstacle && (roomName.includes('hostel') || roomName.includes('lounge'))) {
+            ctx.fillStyle = COLORS.OBSTACLE_BED || '#5f7394';
+            ctx.fillRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+
+            ctx.fillStyle = '#8ea4c4';
+            ctx.fillRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(px + 5, py + 5, TILE_SIZE - 10, 6);
+
+            ctx.strokeStyle = '#2c3747';
+            ctx.lineWidth = 1.2;
+            ctx.strokeRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+            return;
+        }
+
+        // 6. Standard Structural & Corridor Walls (Prominent 3D block with bevel)
+        ctx.fillStyle = COLORS.WALL;
+        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+
+        // Highlighted top inner bevel
+        ctx.fillStyle = COLORS.WALL_TOP || '#3a4066';
+        ctx.fillRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+
+        // Bright perimeter edge highlights
+        ctx.strokeStyle = COLORS.WALL_EDGE;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        if (northOpen) {
+            ctx.moveTo(px, py + 1); ctx.lineTo(px + TILE_SIZE, py + 1);
+        } else {
+            ctx.moveTo(px, py); ctx.lineTo(px + TILE_SIZE, py);
+        }
+        if (westOpen) {
+            ctx.moveTo(px + 1, py); ctx.lineTo(px + 1, py + TILE_SIZE);
+        } else {
+            ctx.moveTo(px, py); ctx.lineTo(px, py + TILE_SIZE);
+        }
+        ctx.stroke();
+
+        // Dark depth shadow on south/east edges
+        ctx.strokeStyle = '#06060c';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        if (southOpen) {
+            ctx.moveTo(px, py + TILE_SIZE - 1); ctx.lineTo(px + TILE_SIZE, py + TILE_SIZE - 1);
+        }
+        if (eastOpen) {
+            ctx.moveTo(px + TILE_SIZE - 1, py); ctx.lineTo(px + TILE_SIZE - 1, py + TILE_SIZE);
+        }
+        ctx.stroke();
+    }
     drawWaterEffects(map, dt) {
         if (!map || !map.tiles) return;
         
@@ -1039,36 +1177,42 @@ class Renderer {
         ctx.translate(sx, sy);
         
         if (isBed) {
-            // Bed: dark oval / rounded frame with subtle pillow
-            ctx.fillStyle = '#141c14';
-            ctx.strokeStyle = '#223322';
-            ctx.lineWidth = 1.2;
+            // Bed: prominent rounded hospital/hostel bed frame with crisp pillow and sheet
+            ctx.fillStyle = '#2d3b4d';
+            ctx.strokeStyle = '#5a7396';
+            ctx.lineWidth = 1.8;
             
             ctx.beginPath();
-            ctx.ellipse(0, 0, 12, 14, 0, 0, Math.PI * 2);
+            ctx.ellipse(0, 0, 13, 15, 0, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
             
-            // Pillow shape
-            ctx.fillStyle = '#222f22';
-            ctx.fillRect(-6, -11, 12, 5);
+            // Sheet & pillow
+            ctx.fillStyle = '#7a96bd';
+            ctx.fillRect(-7, -4, 14, 17);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-7, -11, 14, 6);
         } else {
-            // Locker / Cabinet: dark rectangle with ventilation louvers
-            ctx.fillStyle = '#182418';
-            ctx.strokeStyle = '#2a3d2a';
-            ctx.lineWidth = 1.2;
+            // Locker / Cabinet: distinct olive-emerald locker with shiny vents and latch
+            ctx.fillStyle = COLORS.HIDING_SPOT || '#265431';
+            ctx.strokeStyle = COLORS.HIDING_SPOT_OUTLINE || '#4fa864';
+            ctx.lineWidth = 1.8;
             
-            ctx.fillRect(-8, -13, 16, 26);
-            ctx.strokeRect(-8, -13, 16, 26);
+            ctx.fillRect(-9, -14, 18, 28);
+            ctx.strokeRect(-9, -14, 18, 28);
             
-            // Louver slots
-            ctx.strokeStyle = '#0e150e';
-            ctx.lineWidth = 1;
+            // Louver vent slots
+            ctx.strokeStyle = '#122617';
+            ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.moveTo(-5, -6); ctx.lineTo(5, -6);
-            ctx.moveTo(-5, -2); ctx.lineTo(5, -2);
-            ctx.moveTo(-5, 2); ctx.lineTo(5, 2);
+            ctx.moveTo(-6, -7); ctx.lineTo(6, -7);
+            ctx.moveTo(-6, -2); ctx.lineTo(6, -2);
+            ctx.moveTo(-6, 3); ctx.lineTo(6, 3);
             ctx.stroke();
+
+            // Brass handle
+            ctx.fillStyle = '#d8ab38';
+            ctx.fillRect(4, -1, 2.5, 6);
         }
         
         ctx.restore();
@@ -1222,7 +1366,12 @@ class Renderer {
         this.drawInventory(player);
         this.drawBreathBar(player);
         this.drawBatteryIndicator(player);
+        this.drawMinimap(this.map, player, listener);
         this.drawStoneCounter(player);
+
+        if (this.showFullMap) {
+            this.drawFullMap(this.map, player, listener);
+        }
     }
     
     // Draw the noise bar (TOP CENTER)
@@ -1242,15 +1391,19 @@ class Renderer {
         const clampedNoise = clamp(noiseVal, 0, 1);
         const fillW = Math.round(barW * clampedNoise);
         
-        // Gradient fill: green (0-0.3) -> yellow (0.3-0.6) -> red (0.6-1.0)
+        // Red line indicator percentage
+        const redLinePct = audioManager && audioManager.redLine !== undefined ? audioManager.redLine : NOISE_THRESHOLDS.RED_LINE;
+        const redLineX = barX + Math.round(barW * redLinePct);
+
+        // Gradient fill: green (safe) -> warning -> red line danger
         if (fillW > 0) {
             ctx.save();
             this.clipRoundedRect(ctx, barX, barY, barW, barH, 6);
             
             const grad = ctx.createLinearGradient(barX, barY, barX + barW, barY);
             grad.addColorStop(0.0, COLORS.NOISE_BAR_SAFE);
-            grad.addColorStop(0.3, COLORS.NOISE_BAR_WARN);
-            grad.addColorStop(0.6, COLORS.RED_LINE_COLOR);
+            grad.addColorStop(Math.max(0.08, redLinePct * 0.5), COLORS.NOISE_BAR_WARN);
+            grad.addColorStop(redLinePct, COLORS.RED_LINE_COLOR);
             grad.addColorStop(1.0, COLORS.NOISE_BAR_DANGER);
             
             ctx.fillStyle = grad;
@@ -1258,16 +1411,20 @@ class Renderer {
             ctx.restore();
         }
         
-        // Red line indicator
-        const redLinePct = audioManager && audioManager.redLine !== undefined ? audioManager.redLine : NOISE_THRESHOLDS.RED_LINE;
-        const redLineX = barX + Math.round(barW * redLinePct);
-        
+        // Red line threshold indicator
         ctx.strokeStyle = COLORS.RED_LINE_COLOR;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.5;
         ctx.beginPath();
-        ctx.moveTo(redLineX, barY - 3);
-        ctx.lineTo(redLineX, barY + barH + 3);
+        ctx.moveTo(redLineX, barY - 4);
+        ctx.lineTo(redLineX, barY + barH + 4);
         ctx.stroke();
+
+        // Small clear danger label above the line
+        ctx.font = 'bold 8px monospace';
+        ctx.fillStyle = COLORS.RED_LINE_COLOR;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('▼ DANGER LINE', redLineX, barY - 3);
         
         // Bar pulses/glows when noise is above the red line
         if (clampedNoise >= redLinePct) {
@@ -1485,28 +1642,428 @@ class Renderer {
         ctx.restore();
     }
     
-    // Draw stone counter (TOP LEFT)
+    // Draw the radar minimap (TOP LEFT CORNER)
+    drawMinimap(map, player, listener) {
+        if (!map || !map.tiles) return;
+
+        const ctx = this.ctx;
+        const miniW = 160;
+        const miniH = 134; // 60x50 tiles scaled to 160x134
+        const miniX = 20;
+        const miniY = 20;
+
+        ctx.save();
+
+        // 1. Sleek Radar Frame
+        ctx.fillStyle = 'rgba(7, 10, 18, 0.88)';
+        this.drawRoundedRect(ctx, miniX, miniY, miniW, miniH + 24, 6, true, false);
+
+        ctx.strokeStyle = 'rgba(65, 105, 160, 0.55)';
+        ctx.lineWidth = 1.2;
+        this.drawRoundedRect(ctx, miniX, miniY, miniW, miniH + 24, 6, false, true);
+
+        // Header bar
+        ctx.fillStyle = 'rgba(25, 45, 75, 0.65)';
+        ctx.fillRect(miniX, miniY, miniW, 20);
+
+        ctx.font = 'bold 9px monospace';
+        ctx.fillStyle = '#65b2f0';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('◈ RADAR MAP [M]', miniX + 8, miniY + 10);
+
+        // Current sector / room indicator on right
+        let curRoom = map.getRoom ? map.getRoom(player.x, player.y) : null;
+        let roomName = curRoom ? curRoom.name.split(' ')[0] : 'TRANSIT';
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#9cb8db';
+        ctx.fillText(roomName.toUpperCase(), miniX + miniW - 8, miniY + 10);
+
+        // 2. Map Canvas Viewport (clipped to radar body)
+        const mapAreaX = miniX + 4;
+        const mapAreaY = miniY + 22;
+        const mapAreaW = miniW - 8;
+        const mapAreaH = miniH - 2;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(mapAreaX, mapAreaY, mapAreaW, mapAreaH);
+        ctx.clip();
+
+        // Background of map area
+        ctx.fillStyle = '#060911';
+        ctx.fillRect(mapAreaX, mapAreaY, mapAreaW, mapAreaH);
+
+        const scaleX = mapAreaW / map.width;
+        const scaleY = mapAreaH / map.height;
+
+        // Render floor sectors
+        for (let ty = 0; ty < map.height; ty++) {
+            const row = map.tiles[ty];
+            if (!row) continue;
+            for (let tx = 0; tx < map.width; tx++) {
+                const tile = row[tx];
+                if (tile === TILE.WALL) continue;
+
+                const bx = mapAreaX + tx * scaleX;
+                const by = mapAreaY + ty * scaleY;
+                const bw = Math.max(1, scaleX);
+                const bh = Math.max(1, scaleY);
+
+                if (tile === TILE.WATER) {
+                    ctx.fillStyle = 'rgba(25, 110, 195, 0.85)';
+                } else if (tile === TILE.LOUD_FLOOR) {
+                    ctx.fillStyle = 'rgba(180, 105, 40, 0.85)';
+                } else if (tile === TILE.TUNNEL) {
+                    ctx.fillStyle = 'rgba(110, 65, 155, 0.85)';
+                } else if (tile === TILE.DOOR) {
+                    ctx.fillStyle = 'rgba(215, 150, 70, 0.95)';
+                } else {
+                    ctx.fillStyle = 'rgba(45, 65, 95, 0.8)';
+                }
+                ctx.fillRect(bx, by, bw, bh);
+            }
+        }
+
+        // Hiding spots on radar
+        if (map.hidingSpots) {
+            ctx.fillStyle = '#39e66c';
+            for (const spot of map.hidingSpots) {
+                const hx = mapAreaX + (spot.x / TILE_SIZE) * scaleX;
+                const hy = mapAreaY + (spot.y / TILE_SIZE) * scaleY;
+                ctx.fillRect(hx - 1, hy - 1, 2, 2);
+            }
+        }
+
+        // Memory Stones on radar (pulsing amber diamond)
+        if (map.stones) {
+            const pulse = Math.sin(this.gameTime * 4) * 0.3 + 0.7;
+            for (const stone of map.stones) {
+                if (stone.collected) continue;
+                const sx = mapAreaX + (stone.x / TILE_SIZE) * scaleX;
+                const sy = mapAreaY + (stone.y / TILE_SIZE) * scaleY;
+
+                ctx.fillStyle = `rgba(255, 180, 50, ${pulse})`;
+                ctx.beginPath();
+                ctx.arc(sx, sy, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Exit on radar
+        if (map.exitPos) {
+            const ex = mapAreaX + (map.exitPos.x / TILE_SIZE) * scaleX;
+            const ey = mapAreaY + (map.exitPos.y / TILE_SIZE) * scaleY;
+            ctx.fillStyle = '#33ffaa';
+            ctx.fillRect(ex - 2, ey - 2, 4, 4);
+        }
+
+        // Player icon on radar with heading cone
+        const ptx = (player.x / TILE_SIZE) * scaleX;
+        const pty = (player.y / TILE_SIZE) * scaleY;
+        const px = mapAreaX + ptx;
+        const py = mapAreaY + pty;
+
+        // Flashlight field on radar
+        if (player.flashlightOn) {
+            ctx.fillStyle = 'rgba(255, 245, 180, 0.3)';
+            ctx.beginPath();
+            ctx.moveTo(px, py);
+            const pAngle = player.flashlightAngle !== undefined ? player.flashlightAngle : player.angle;
+            ctx.arc(px, py, 14, pAngle - 0.5, pAngle + 0.5);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // Player marker
+        ctx.fillStyle = '#55d0ff';
+        ctx.shadowColor = '#55d0ff';
+        ctx.shadowBlur = 4;
+        ctx.beginPath();
+        ctx.arc(px, py, 2.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Listener disturbance ping if within 320px
+        if (listener && dist(player.x, player.y, listener.x, listener.y) < 320) {
+            const lx = mapAreaX + (listener.x / TILE_SIZE) * scaleX;
+            const ly = mapAreaY + (listener.y / TILE_SIZE) * scaleY;
+            const pingRadius = ((this.gameTime * 8) % 10) + 1;
+            ctx.strokeStyle = 'rgba(255, 40, 40, 0.7)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(lx, ly, pingRadius, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        ctx.restore(); // restore clipping
+
+        // Corner accents on radar
+        ctx.strokeStyle = 'rgba(100, 160, 240, 0.7)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(miniX, miniY + 6); ctx.lineTo(miniX, miniY); ctx.lineTo(miniX + 6, miniY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(miniX + miniW - 6, miniY); ctx.lineTo(miniX + miniW, miniY); ctx.lineTo(miniX + miniW, miniY + 6); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(miniX, miniY + miniH + 24 - 6); ctx.lineTo(miniX, miniY + miniH + 24); ctx.lineTo(miniX + 6, miniY + miniH + 24); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(miniX + miniW - 6, miniY + miniH + 24); ctx.lineTo(miniX + miniW, miniY + miniH + 24); ctx.lineTo(miniX + miniW, miniY + miniH + 24 - 6); ctx.stroke();
+
+        ctx.restore();
+    }
+
+    // Full tactical blueprint map overlay (toggled with M key)
+    drawFullMap(map, player, listener) {
+        if (!map || !map.tiles) return;
+
+        const ctx = this.ctx;
+        ctx.save();
+
+        // 1. Full dark blueprint overlay
+        ctx.fillStyle = 'rgba(5, 8, 15, 0.94)';
+        ctx.fillRect(0, 0, this.width, this.height);
+
+        // Blueprint architectural grid lines
+        ctx.strokeStyle = 'rgba(30, 50, 80, 0.25)';
+        ctx.lineWidth = 1;
+        const gridSize = 32;
+        for (let x = 0; x < this.width; x += gridSize) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, this.height); ctx.stroke();
+        }
+        for (let y = 0; y < this.height; y += gridSize) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(this.width, y); ctx.stroke();
+        }
+
+        // Header Title
+        ctx.font = 'bold 22px Courier New, monospace';
+        ctx.fillStyle = '#65b2f0';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('FACILITY BLUEPRINT & SURVEILLANCE SCHEMATIC', this.width / 2, 28);
+
+        ctx.font = '12px monospace';
+        ctx.fillStyle = '#8ca3c7';
+        ctx.fillText('Press [M] or [ESC] to return to action', this.width / 2, 56);
+
+        // Center map box
+        const maxMapW = this.width * 0.78;
+        const maxMapH = this.height * 0.70;
+        const scale = Math.min(maxMapW / map.width, maxMapH / map.height);
+
+        const drawW = map.width * scale;
+        const drawH = map.height * scale;
+        const ox = (this.width - drawW) / 2;
+        const oy = 84 + (maxMapH - drawH) / 2;
+
+        // Blueprint frame
+        ctx.strokeStyle = 'rgba(80, 130, 190, 0.6)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(ox - 6, oy - 6, drawW + 12, drawH + 12);
+
+        ctx.fillStyle = '#090e1a';
+        ctx.fillRect(ox - 6, oy - 6, drawW + 12, drawH + 12);
+
+        // Render tiles
+        for (let ty = 0; ty < map.height; ty++) {
+            const row = map.tiles[ty];
+            if (!row) continue;
+            for (let tx = 0; tx < map.width; tx++) {
+                const tile = row[tx];
+                const bx = ox + tx * scale;
+                const by = oy + ty * scale;
+                const bw = Math.max(1, Math.ceil(scale));
+                const bh = Math.max(1, Math.ceil(scale));
+
+                if (tile === TILE.WALL) {
+                    ctx.fillStyle = '#1c253b';
+                } else if (tile === TILE.WATER) {
+                    ctx.fillStyle = '#1b5a94';
+                } else if (tile === TILE.LOUD_FLOOR) {
+                    ctx.fillStyle = '#8a5223';
+                } else if (tile === TILE.TUNNEL) {
+                    ctx.fillStyle = '#593a7a';
+                } else if (tile === TILE.DOOR) {
+                    ctx.fillStyle = '#b88139';
+                } else {
+                    ctx.fillStyle = '#314463';
+                }
+                ctx.fillRect(bx, by, bw, bh);
+            }
+        }
+
+        // Room Labels on blueprint
+        if (map.rooms) {
+            ctx.font = 'bold 10px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            for (const r of map.rooms) {
+                const rcx = ox + (r.x + r.w / 2) * scale;
+                const rcy = oy + (r.y + r.h / 2) * scale;
+
+                ctx.fillStyle = 'rgba(7, 12, 22, 0.75)';
+                const label = r.name.toUpperCase();
+                const tw = ctx.measureText(label).width;
+                ctx.fillRect(rcx - tw / 2 - 4, rcy - 8, tw + 8, 16);
+
+                ctx.strokeStyle = 'rgba(85, 140, 210, 0.4)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(rcx - tw / 2 - 4, rcy - 8, tw + 8, 16);
+
+                ctx.fillStyle = '#c5dbf5';
+                ctx.fillText(label, rcx, rcy);
+            }
+        }
+
+        // Patrol Route ("The Short Way" - Red Dashed Line)
+        if (map.patrolPoints && map.patrolPoints.length > 1) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 60, 60, 0.7)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            for (let i = 0; i < map.patrolPoints.length; i++) {
+                const pt = map.patrolPoints[i];
+                const px = ox + (pt.x / TILE_SIZE) * scale;
+                const py = oy + (pt.y / TILE_SIZE) * scale;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // Hiding spots
+        if (map.hidingSpots) {
+            ctx.fillStyle = '#39e66c';
+            for (const s of map.hidingSpots) {
+                const hx = ox + (s.x / TILE_SIZE) * scale;
+                const hy = oy + (s.y / TILE_SIZE) * scale;
+                ctx.fillRect(hx - 2, hy - 2, 4, 4);
+            }
+        }
+
+        // Memory stones
+        if (map.stones) {
+            const stonePulse = Math.sin(this.gameTime * 5) * 0.3 + 0.7;
+            for (let i = 0; i < map.stones.length; i++) {
+                const st = map.stones[i];
+                const sx = ox + (st.x / TILE_SIZE) * scale;
+                const sy = oy + (st.y / TILE_SIZE) * scale;
+
+                if (!st.collected) {
+                    ctx.fillStyle = `rgba(255, 180, 50, ${stonePulse})`;
+                    ctx.shadowColor = '#ffaa33';
+                    ctx.shadowBlur = 8;
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 9px monospace';
+                    ctx.fillText(`STONE ${st.id || (i + 1)}`, sx, sy - 10);
+                } else {
+                    ctx.strokeStyle = 'rgba(120, 120, 120, 0.6)';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // Exit marker
+        if (map.exitPos) {
+            const ex = ox + (map.exitPos.x / TILE_SIZE) * scale;
+            const ey = oy + (map.exitPos.y / TILE_SIZE) * scale;
+
+            ctx.fillStyle = '#33ffaa';
+            ctx.shadowColor = '#33ffaa';
+            ctx.shadowBlur = 8;
+            ctx.fillRect(ex - 4, ey - 4, 8, 8);
+            ctx.shadowBlur = 0;
+
+            ctx.font = 'bold 10px monospace';
+            ctx.fillStyle = '#33ffaa';
+            ctx.fillText('EXIT PORTAL', ex, ey - 12);
+        }
+
+        // Player pin
+        const ppx = ox + (player.x / TILE_SIZE) * scale;
+        const ppy = oy + (player.y / TILE_SIZE) * scale;
+
+        ctx.fillStyle = '#00e1ff';
+        ctx.shadowColor = '#00e1ff';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(ppx, ppy, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        if (player.flashlightOn) {
+            ctx.fillStyle = 'rgba(255, 240, 170, 0.35)';
+            ctx.beginPath();
+            ctx.moveTo(ppx, ppy);
+            const pAngle = player.flashlightAngle !== undefined ? player.flashlightAngle : player.angle;
+            ctx.arc(ppx, ppy, 22, pAngle - 0.55, pAngle + 0.55);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        ctx.font = 'bold 10px monospace';
+        ctx.fillStyle = '#00e1ff';
+        ctx.fillText('YOU ARE HERE', ppx, ppy + 14);
+
+        // Legend box on bottom
+        const legY = this.height - 36;
+        ctx.font = '11px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#8ca3c7';
+        ctx.fillText(
+            'LEGEND:  ● YOU (Cyan)  |  ◆ STONES (Gold)  |  ■ HIDING SPOTS (Green)  |  --- THE SHORT WAY (Red Patrol)  |  ⚑ EXIT (Mint)',
+            this.width / 2, legY
+        );
+
+        ctx.restore();
+    }
+
+    // Draw stone counter (TOP LEFT - positioned cleanly below minimap)
     drawStoneCounter(player) {
         const ctx = this.ctx;
         const collected = player ? (player.stonesCollected || 0) : 0;
         
         ctx.save();
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        
+        const boxX = 20;
+        const boxY = 184; // Just below the minimap (height 158)
+        const boxW = 160;
+        const boxH = 26;
+
+        ctx.fillStyle = 'rgba(7, 10, 18, 0.85)';
+        this.drawRoundedRect(ctx, boxX, boxY, boxW, boxH, 4, true, false);
+
+        ctx.strokeStyle = 'rgba(65, 105, 160, 0.45)';
+        ctx.lineWidth = 1;
+        this.drawRoundedRect(ctx, boxX, boxY, boxW, boxH, 4, false, true);
+
         // Glowing amber stone icon
-        ctx.font = '16px monospace';
+        ctx.font = '14px monospace';
         ctx.shadowColor = COLORS.STONE_GLOW;
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = 6;
         ctx.fillStyle = COLORS.STONE_GLOW;
-        ctx.fillText('◆', 24, 22);
-        
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('◆', boxX + 8, boxY + boxH / 2);
+
         // Counter text
         ctx.shadowBlur = 0;
         ctx.fillStyle = COLORS.TEXT;
-        ctx.font = '14px monospace';
-        ctx.fillText(` ${collected}/${TOTAL_STONES}`, 38, 24);
-        
+        ctx.font = '11px monospace';
+        ctx.fillText(`STONES: ${collected}/${TOTAL_STONES}`, boxX + 24, boxY + boxH / 2);
+
+        // Key toggle tip on right
+        ctx.fillStyle = '#65b2f0';
+        ctx.font = '9px monospace';
+        ctx.textAlign = 'right';
+        ctx.fillText('[M] MAP', boxX + boxW - 8, boxY + boxH / 2);
+
         ctx.restore();
     }
     

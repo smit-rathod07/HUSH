@@ -9,11 +9,11 @@ class AudioManager {
         this.micLevel = 0;           // Raw mic level 0-1
         this.smoothedLevel = 0;      // Smoothed mic level 0-1
         this.noiseBarValue = 0;      // Final noise bar value 0-1 (includes movement, stones, etc.)
-        this.redLine = NOISE_THRESHOLDS.RED_LINE; // 0.6
+        this.redLine = NOISE_THRESHOLDS.RED_LINE; // 0.36
         this.micActive = false;
         this.calibrated = false;
         this.calibrationData = { whisper: 0, talk: 0, shout: 0 };
-        this.micGain = 1.0;          // Adjusted after calibration
+        this.micGain = 2.5;          // Adjusted baseline for responsive voice detection
         this.audioCtx = null;
         this.heartbeatIntensity = 0; // 0-1
         this.heartbeatTimer = 0;
@@ -176,14 +176,14 @@ class AudioManager {
     finalizeCalibration() {
         const talk = this.calibrationData.talk || 0;
         if (talk > 0.01) {
-            this.micGain = clamp(0.4 / talk, 0.5, 20.0);
+            this.micGain = clamp(0.24 / talk, 1.2, 35.0);
         } else if (this.calibrationData.shout > 0.02) {
-            this.micGain = clamp(0.8 / this.calibrationData.shout, 0.5, 20.0);
+            this.micGain = clamp(0.48 / this.calibrationData.shout, 1.2, 35.0);
         } else if (this.calibrationData.whisper > 0.005) {
-            this.micGain = clamp(0.15 / this.calibrationData.whisper, 0.5, 20.0);
+            this.micGain = clamp(0.08 / this.calibrationData.whisper, 1.2, 35.0);
         } else {
             // Default gain if mic was completely silent or unavailable
-            this.micGain = 1.0;
+            this.micGain = 2.5;
         }
         this.calibrated = true;
         return this.micGain;
