@@ -2460,66 +2460,781 @@ class Renderer {
         ctx.restore();
     }
     
-    // Draw menu screen
+    // ============================================================
+    // THEME: MAIN MENU HORROR SCENE (The Ruins, Dead Girl & Running Soul)
+    // ============================================================
+
+    // Draw main menu screen with living horror environment
     drawMenu() {
         const ctx = this.ctx;
-        
-        // Pitch dark background
-        ctx.fillStyle = '#050508';
-        ctx.fillRect(0, 0, this.width, this.height);
-        
-        const cx = this.width / 2;
-        const cy = this.height / 2;
-        
-        // The Listener's faint glowing eyes in the pitch black behind the title
-        const eyePulse = Math.sin(this.gameTime * 2.5) * 0.25 + 0.75;
-        const eyeY = cy - 70;
-        const eyeOffsets = [-32, 32];
-        for (const ex of eyeOffsets) {
-            const glow = ctx.createRadialGradient(cx + ex, eyeY, 1, cx + ex, eyeY, 18 * eyePulse);
-            glow.addColorStop(0.0, 'rgba(255, 34, 34, 0.7)');
-            glow.addColorStop(0.4, 'rgba(255, 34, 34, 0.2)');
-            glow.addColorStop(1.0, 'rgba(255, 34, 34, 0.0)');
+        const w = this.width;
+        const h = this.height;
+        const t = this.gameTime || 0;
+
+        ctx.save();
+
+        // 1. Collapsed Station Architecture & Tracks
+        this.drawMenuStationEnvironment(ctx, w, h, t);
+
+        // 2. Hanging and Corner Spider Webs
+        this.drawMenuSpiderWebs(ctx, w, h, t);
+
+        // 3. The Running Soul of the Stranger (Eternal Sprint)
+        this.drawMenuRunningSoul(ctx, w, h, t);
+
+        // 4. The Dead Girl's Body & Glowing Memory Stone
+        this.drawMenuDeadGirl(ctx, w, h, t);
+
+        // 5. The Listener Lurking in the Overhead Shadows
+        this.drawMenuListenerLurking(ctx, w, h, t);
+
+        // 6. Volumetric Ground Mist, Water Ripples, and Drifting Embers
+        this.drawMenuAtmosphere(ctx, w, h, t);
+
+        // 7. Cinematic Dark Horror Vignette
+        this.drawMenuVignette(ctx, w, h);
+
+        ctx.restore();
+    }
+
+    // 1. Abandoned Subway Ruins & Collapsed Architecture
+    drawMenuStationEnvironment(ctx, w, h, t) {
+        // Deep subterranean background gradient
+        const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+        bgGrad.addColorStop(0.0, '#020306');
+        bgGrad.addColorStop(0.4, '#05070d');
+        bgGrad.addColorStop(0.72, '#090d16');
+        bgGrad.addColorStop(1.0, '#030407');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, w, h);
+
+        // Receding subway tunnel arches in the dark
+        const platformY = h * 0.72;
+
+        // Tunnel arch 1 (Far Left - from where the soul sprints out)
+        const a1x = w * 0.12;
+        ctx.fillStyle = '#020204';
+        ctx.beginPath();
+        ctx.ellipse(a1x, platformY, w * 0.09, h * 0.42, 0, Math.PI, 0);
+        ctx.lineTo(a1x + w * 0.09, platformY);
+        ctx.lineTo(a1x - w * 0.09, platformY);
+        ctx.closePath();
+        ctx.fill();
+
+        // Arch masonry border
+        ctx.strokeStyle = '#121722';
+        ctx.lineWidth = 14;
+        ctx.stroke();
+
+        // Broken brickwork and wall cracks inside arch
+        ctx.strokeStyle = 'rgba(40, 55, 80, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(a1x - 30, platformY - 80);
+        ctx.lineTo(a1x - 10, platformY - 100);
+        ctx.lineTo(a1x + 15, platformY - 95);
+        ctx.lineTo(a1x + 35, platformY - 130);
+        ctx.stroke();
+
+        // Center backdrop arches (decaying pillars)
+        const pillarWidth = Math.max(16, w * 0.025);
+        const pillars = [w * 0.32, w * 0.50, w * 0.68];
+        for (const px of pillars) {
+            ctx.fillStyle = '#080c14';
+            ctx.fillRect(px - pillarWidth / 2, h * 0.18, pillarWidth, platformY - h * 0.18);
             
+            ctx.strokeStyle = '#101726';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(px - pillarWidth / 2, h * 0.18, pillarWidth, platformY - h * 0.18);
+
+            // Wall stain drips
+            ctx.fillStyle = 'rgba(3, 5, 8, 0.7)';
+            ctx.fillRect(px - pillarWidth / 2 + 2, h * 0.25, 4, platformY * 0.4);
+        }
+
+        // Platform Floor line
+        ctx.fillStyle = '#0b0f19';
+        ctx.fillRect(0, platformY, w, h - platformY);
+
+        // Distressed subway tiles grid on platform
+        ctx.strokeStyle = 'rgba(25, 35, 55, 0.4)';
+        ctx.lineWidth = 1;
+        const tileSize = 36;
+        for (let x = 0; x < w; x += tileSize) {
+            ctx.beginPath();
+            ctx.moveTo(x, platformY);
+            ctx.lineTo(x - (w / 2 - x) * 0.3, h);
+            ctx.stroke();
+        }
+        for (let y = platformY + 14; y < h; y += 22) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(w, y);
+            ctx.stroke();
+        }
+
+        // Railway tracks on the left side
+        const trackY1 = platformY + (h - platformY) * 0.3;
+        const trackY2 = platformY + (h - platformY) * 0.75;
+        
+        // Wooden sleepers (cross-ties)
+        ctx.fillStyle = '#111620';
+        for (let rx = 0; rx < w * 0.55; rx += 28) {
+            ctx.fillRect(rx - 8, trackY1 - 6, 16, trackY2 - trackY1 + 12);
+        }
+
+        // Steel Rails
+        ctx.strokeStyle = '#2b3648';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(0, trackY1);
+        ctx.lineTo(w * 0.55, trackY1);
+        ctx.moveTo(0, trackY2);
+        ctx.lineTo(w * 0.55, trackY2);
+        ctx.stroke();
+
+        // Rail top reflections
+        ctx.strokeStyle = 'rgba(120, 160, 210, 0.35)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, trackY1 - 1);
+        ctx.lineTo(w * 0.55, trackY1 - 1);
+        ctx.moveTo(0, trackY2 - 1);
+        ctx.lineTo(w * 0.55, trackY2 - 1);
+        ctx.stroke();
+
+        // Floor water puddles reflecting light
+        const puddleX1 = w * 0.28;
+        const puddleY1 = platformY + 24;
+        ctx.fillStyle = 'rgba(10, 20, 36, 0.65)';
+        ctx.beginPath();
+        ctx.ellipse(puddleX1, puddleY1, 65, 14, -0.05, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Overhead dangling wires that sway gently
+        const sway1 = Math.sin(t * 1.3) * 6;
+        const sway2 = Math.cos(t * 1.6) * 8;
+        ctx.strokeStyle = '#0e141f';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, h * 0.08);
+        ctx.bezierCurveTo(w * 0.2, h * 0.22 + sway1, w * 0.4, h * 0.25 + sway2, w * 0.6, h * 0.12);
+        ctx.stroke();
+
+        // Occasional electrical spark at dangling junction
+        if (Math.sin(t * 8.4) > 0.94) {
+            const sparkX = w * 0.38;
+            const sparkY = h * 0.24 + sway2;
+            ctx.fillStyle = '#aaddff';
+            ctx.shadowColor = '#00e5ff';
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.arc(sparkX, sparkY, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        // Flickering emergency subway beacon on ceiling
+        const lampX = w * 0.24;
+        const lampY = h * 0.14;
+        const flicker = (Math.sin(t * 5.3) > 0.88 || Math.sin(t * 17.1) > 0.93) ? 0.2 : (Math.sin(t * 1.8) * 0.15 + 0.85);
+
+        const lampGlow = ctx.createRadialGradient(lampX, lampY, 2, lampX, lampY + 40, 160);
+        lampGlow.addColorStop(0, `rgba(255, 45, 45, ${0.45 * flicker})`);
+        lampGlow.addColorStop(0.3, `rgba(180, 25, 25, ${0.18 * flicker})`);
+        lampGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = lampGlow;
+        ctx.beginPath();
+        ctx.arc(lampX, lampY + 40, 160, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Lamp fixture
+        ctx.fillStyle = '#ff2222';
+        ctx.shadowColor = '#ff2222';
+        ctx.shadowBlur = 14 * flicker;
+        ctx.beginPath();
+        ctx.arc(lampX, lampY, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+
+    // 2. Realistic Procedural Spider Webs (Corners, Girders & Rafters)
+    drawMenuSpiderWebs(ctx, w, h, t) {
+        ctx.save();
+        
+        // --- Helper: Draw radial web structure ---
+        const drawWeb = (ox, oy, radius, startAngle, endAngle, spokeCount, ringCount, swayOffset = 0) => {
+            const angleStep = (endAngle - startAngle) / (spokeCount - 1);
+            const spokeTips = [];
+
+            // Draw radial spokes
+            ctx.strokeStyle = 'rgba(210, 225, 245, 0.35)';
+            ctx.lineWidth = 1.1;
+
+            for (let i = 0; i < spokeCount; i++) {
+                const angle = startAngle + i * angleStep;
+                const r = radius * (0.85 + Math.sin(i * 1.5) * 0.15);
+                const ex = ox + Math.cos(angle) * r;
+                const ey = oy + Math.sin(angle) * r;
+                spokeTips.push({ x: ex, y: ey, angle, r });
+
+                ctx.beginPath();
+                ctx.moveTo(ox, oy);
+                ctx.lineTo(ex, ey);
+                ctx.stroke();
+            }
+
+            // Draw concentric spiral sagging arcs
+            ctx.strokeStyle = 'rgba(195, 215, 240, 0.28)';
+            ctx.lineWidth = 0.9;
+
+            for (let rIdx = 1; rIdx <= ringCount; rIdx++) {
+                const ringFraction = rIdx / ringCount;
+                ctx.beginPath();
+
+                for (let i = 0; i < spokeCount - 1; i++) {
+                    const s1 = spokeTips[i];
+                    const s2 = spokeTips[i + 1];
+
+                    const p1x = ox + Math.cos(s1.angle) * s1.r * ringFraction;
+                    const p1y = oy + Math.sin(s1.angle) * s1.r * ringFraction;
+                    const p2x = ox + Math.cos(s2.angle) * s2.r * ringFraction;
+                    const p2y = oy + Math.sin(s2.angle) * s2.r * ringFraction;
+
+                    // Sagging midpoint
+                    const midX = (p1x + p2x) / 2;
+                    const midY = (p1y + p2y) / 2;
+                    const sag = 6 * ringFraction + Math.sin(t * 1.5 + swayOffset) * 1.5;
+                    const ctrlX = midX - (midX - ox) * (sag / 100);
+                    const ctrlY = midY - (midY - oy) * (sag / 100);
+
+                    if (i === 0) ctx.moveTo(p1x, p1y);
+                    ctx.quadraticCurveTo(ctrlX, ctrlY, p2x, p2y);
+                }
+                ctx.stroke();
+            }
+        };
+
+        // Top-Left Spider Web (Large Corner Web)
+        const tlSize = Math.min(w, h) * 0.42;
+        drawWeb(0, 0, tlSize, 0, Math.PI / 2, 8, 7, 0);
+
+        // Top-Right Spider Web
+        const trSize = Math.min(w, h) * 0.38;
+        drawWeb(w, 0, trSize, Math.PI / 2, Math.PI, 7, 6, 1.2);
+
+        // Bottom-Right Rubble Cobwebs (Clinging to the collapsed concrete)
+        const brSize = Math.min(w, h) * 0.28;
+        drawWeb(w * 0.95, h * 0.72, brSize, Math.PI * 0.8, Math.PI * 1.45, 6, 5, 2.1);
+
+        // Dangling web strands in top-left with creeping spider
+        const strandX = w * 0.08;
+        const strandY = h * 0.18 + Math.sin(t * 2.0) * 4;
+        ctx.strokeStyle = 'rgba(220, 235, 255, 0.45)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(strandX, 0);
+        ctx.lineTo(strandX, strandY);
+        ctx.stroke();
+
+        // Small creeping spider silhouette
+        ctx.fillStyle = '#080c14';
+        ctx.beginPath();
+        ctx.ellipse(strandX, strandY, 4, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(strandX, strandY + 3.5, 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Spider legs
+        ctx.strokeStyle = '#080c14';
+        ctx.lineWidth = 1;
+        const legOffsets = [-4, -2, 2, 4];
+        for (const lo of legOffsets) {
+            ctx.beginPath();
+            ctx.moveTo(strandX - 2, strandY + lo * 0.5);
+            ctx.lineTo(strandX - 6, strandY + lo * 1.2);
+            ctx.moveTo(strandX + 2, strandY + lo * 0.5);
+            ctx.lineTo(strandX + 6, strandY + lo * 1.2);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+
+    // 3. The Running Soul of the Stranger (The Restless Sprint)
+    drawMenuRunningSoul(ctx, w, h, t) {
+        ctx.save();
+
+        const cycleDuration = 6.4; // seconds per cycle
+        const cycle = t % cycleDuration;
+        const platformY = h * 0.71;
+
+        if (cycle < 4.8) {
+            // SPRINTING PHASE: Desperate dash toward the trapped girl
+            const p = cycle / 4.8;
+            const startX = w * 0.06;
+            const targetX = w * 0.67;
+            const curX = startX + (targetX - startX) * p;
+            const bobY = Math.abs(Math.sin(p * 26)) * 4.5;
+            const curY = platformY - bobY;
+
+            // --- GHOST ECHOES / MOTION BLUR (4 trailing afterimages) ---
+            const echoOffsets = [14, 28, 44, 62];
+            const echoAlphas = [0.25, 0.16, 0.09, 0.04];
+            for (let i = 0; i < echoOffsets.length; i++) {
+                const ex = curX - echoOffsets[i];
+                if (ex > startX - 20) {
+                    ctx.save();
+                    ctx.globalAlpha = echoAlphas[i];
+                    ctx.fillStyle = '#33ddff';
+                    ctx.shadowColor = '#00ffee';
+                    ctx.shadowBlur = 10;
+                    this._renderSoulSilhouette(ctx, ex, curY + (i % 2) * 2, p, false);
+                    ctx.restore();
+                }
+            }
+
+            // --- MAIN RUNNING SPECTRAL SILHOUETTE ---
+            ctx.save();
+            ctx.globalAlpha = 0.88;
+            ctx.fillStyle = '#a8f4ff';
+            ctx.shadowColor = '#00f0ff';
+            ctx.shadowBlur = 18;
+            this._renderSoulSilhouette(ctx, curX, curY, p, true);
+
+            // Outstretched arm reaching forward for her hand
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(curX + 6, curY - 26);
+            ctx.lineTo(curX + 28, curY - 24);
+            ctx.stroke();
+
+            // Reaching hand / fingers
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(curX + 28, curY - 24, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+
+            // Spectral trail particles
+            ctx.fillStyle = 'rgba(100, 220, 255, 0.6)';
+            for (let i = 0; i < 3; i++) {
+                const px = curX - 10 - Math.random() * 30;
+                const py = curY - 10 - Math.random() * 20;
+                ctx.beginPath();
+                ctx.arc(px, py, Math.random() * 2 + 0.8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+        } else if (cycle < 5.6) {
+            // DISSOLVING PHASE: Seconds from reaching her, the cave-in shudders and his soul dissolves
+            const dp = (cycle - 4.8) / 0.8;
+            const shatterX = w * 0.67;
+            const shatterY = platformY;
+
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, 1.0 - dp);
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 25 * (1 - dp);
+
+            // Shuddering silhouette bursting apart
+            this._renderSoulSilhouette(ctx, shatterX + (Math.random() - 0.5) * 4, shatterY, 1.0, true);
+
+            // Upward exploding soul embers and smoke
+            for (let i = 0; i < 18; i++) {
+                const emberX = shatterX + (Math.random() - 0.5) * 45;
+                const emberY = shatterY - 20 - dp * 70 - Math.random() * 30;
+                ctx.fillStyle = (i % 2 === 0) ? '#ffffff' : '#4deeea';
+                ctx.beginPath();
+                ctx.arc(emberX, emberY, Math.random() * 3 + 1, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Falling concrete dust in front of him
+            ctx.fillStyle = 'rgba(180, 190, 205, 0.45)';
+            for (let i = 0; i < 12; i++) {
+                const rx = shatterX + 15 + (Math.random() - 0.5) * 35;
+                const ry = platformY - 60 + dp * 80 + Math.random() * 20;
+                ctx.fillRect(rx, ry, Math.random() * 3 + 2, Math.random() * 3 + 2);
+            }
+            ctx.restore();
+
+        } else {
+            // VOID PHASE: Dust settles, silence, soul prepares to emerge from dark left tunnel
+            const vp = (cycle - 5.6) / 0.8;
+            const a1x = w * 0.12;
+            const glow = ctx.createRadialGradient(a1x, platformY - 20, 1, a1x, platformY - 20, 45);
+            glow.addColorStop(0, `rgba(0, 240, 255, ${0.35 * vp})`);
+            glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
             ctx.fillStyle = glow;
             ctx.beginPath();
-            ctx.arc(cx + ex, eyeY, 18 * eyePulse, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.fillStyle = COLORS.LISTENER_EYE;
-            ctx.beginPath();
-            ctx.arc(cx + ex, eyeY, 2.5, 0, Math.PI * 2);
+            ctx.arc(a1x, platformY - 20, 45, 0, Math.PI * 2);
             ctx.fill();
         }
-        
-        // Title "HUSH"
-        ctx.save();
-        ctx.font = 'bold 72px Georgia, serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = '#000000';
-        ctx.shadowBlur = 16;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText('H U S H', cx, cy - 10);
+
         ctx.restore();
+    }
+
+    // Helper: Draw runner silhouette with coat, head, legs in sprint kinematics
+    _renderSoulSilhouette(ctx, x, y, runCycle, isMain = true) {
+        const leanAngle = 0.38; // forward sprint lean
+        const legPhase = runCycle * 26;
+
+        ctx.save();
+        ctx.translate(x, y);
+
+        // Billowing trench coat behind runner
+        ctx.beginPath();
+        ctx.moveTo(-2, -26);
+        ctx.quadraticCurveTo(-18, -18 + Math.sin(legPhase) * 6, -34, -14 + Math.cos(legPhase) * 8);
+        ctx.lineTo(-24, -28 + Math.sin(legPhase + 1) * 7);
+        ctx.lineTo(-4, -32);
+        ctx.closePath();
+        ctx.fill();
+
+        // Torso leaning forward
+        ctx.beginPath();
+        ctx.ellipse(2, -24, 7, 14, leanAngle, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Head straining forward
+        ctx.beginPath();
+        ctx.arc(10, -36, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Legs sprint kinematics
+        const hipX = -1;
+        const hipY = -12;
+        const leg1Angle = Math.sin(legPhase) * 0.75;
+        const leg2Angle = Math.sin(legPhase + Math.PI) * 0.75;
+
+        // Front leg
+        ctx.lineWidth = 3.2;
+        ctx.strokeStyle = ctx.fillStyle;
+        ctx.beginPath();
+        ctx.moveTo(hipX, hipY);
+        const k1x = hipX + Math.sin(leg1Angle) * 12 + 4;
+        const k1y = hipY + Math.cos(leg1Angle) * 12;
+        ctx.lineTo(k1x, k1y);
+        ctx.lineTo(k1x + 6, k1y + 11);
+        ctx.stroke();
+
+        // Back leg
+        ctx.beginPath();
+        ctx.moveTo(hipX, hipY);
+        const k2x = hipX + Math.sin(leg2Angle) * 12 - 4;
+        const k2y = hipY + Math.cos(leg2Angle) * 12;
+        ctx.lineTo(k2x, k2y);
+        ctx.lineTo(k2x - 7, k2y + 11);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    // 4. The Dead Girl's Body (Trapped under collapsed slab) & Glowing Memory Stone
+    drawMenuDeadGirl(ctx, w, h, t) {
+        ctx.save();
+
+        const platformY = h * 0.72;
+        const gx = w * 0.77;
+        const gy = platformY + 6;
+
+        // --- COLLAPSED CONCRETE RUBBLE PILE ---
+        // Heavy broken slab angled over her lower body
+        ctx.fillStyle = '#06080e';
+        ctx.beginPath();
+        ctx.moveTo(gx - 15, gy + 14);
+        ctx.lineTo(gx + w * 0.16, gy - 28);
+        ctx.lineTo(gx + w * 0.18, gy + 18);
+        ctx.lineTo(gx - 10, gy + 22);
+        ctx.closePath();
+        ctx.fill();
+
+        // Front slab face
+        ctx.fillStyle = '#141a26';
+        ctx.beginPath();
+        ctx.moveTo(gx - 10, gy - 2);
+        ctx.lineTo(gx + w * 0.15, gy - 36);
+        ctx.lineTo(gx + w * 0.16, gy - 26);
+        ctx.lineTo(gx - 6, gy + 10);
+        ctx.closePath();
+        ctx.fill();
+
+        // Exposed twisted rusted rebar wires sticking out of broken concrete
+        ctx.strokeStyle = '#6a4a35';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(gx + 20, gy - 12);
+        ctx.lineTo(gx + 12, gy - 28);
+        ctx.lineTo(gx + 18, gy - 36);
+        ctx.moveTo(gx + 45, gy - 18);
+        ctx.lineTo(gx + 55, gy - 32);
+        ctx.stroke();
+
+        // Crushed brick fragments and gravel around the slab
+        ctx.fillStyle = '#261b17';
+        ctx.fillRect(gx - 25, gy + 10, 8, 5);
+        ctx.fillRect(gx - 40, gy + 8, 6, 4);
+        ctx.fillRect(gx + 30, gy + 12, 10, 6);
+
+        // --- THE DEAD GIRL ---
+        // Lying on her side in the dust, lower half pinned beneath the slab
         
-        // Subtitle: "The loudest thing in the room is you."
-        ctx.font = 'italic 17px Georgia, serif';
-        ctx.fillStyle = '#8899aa';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('The loudest thing in the room is you.', cx, cy + 42);
-        
-        // "Click to begin" prompt that pulses
-        const promptPulse = Math.sin(this.gameTime * 3) * 0.35 + 0.65;
-        ctx.font = '14px monospace';
-        ctx.fillStyle = `rgba(200, 215, 230, ${promptPulse})`;
-        ctx.fillText('CLICK OR PRESS SPACE TO BEGIN', cx, cy + 115);
-        
-        // Headphone & Mic reminder at bottom
-        ctx.font = '12px sans-serif';
-        ctx.fillStyle = '#445566';
-        ctx.fillText('Headphones recommended • Microphone required for gameplay', cx, this.height - 30);
+        // Torso in torn dusty vintage dress
+        ctx.fillStyle = '#2a344c';
+        ctx.beginPath();
+        ctx.ellipse(gx - 22, gy - 2, 16, 7, -0.15, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Delicate head resting on the cold stone
+        ctx.fillStyle = '#d2d9e8'; // pale skin
+        ctx.beginPath();
+        ctx.arc(gx - 42, gy - 5, 6.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Long dark hair spilled across the wet concrete floor
+        ctx.fillStyle = '#080a10';
+        ctx.beginPath();
+        ctx.moveTo(gx - 40, gy - 9);
+        ctx.quadraticCurveTo(gx - 54, gy - 6, gx - 58, gy + 4);
+        ctx.lineTo(gx - 36, gy + 2);
+        ctx.closePath();
+        ctx.fill();
+
+        // Outstretched pale arm reaching forward toward center
+        ctx.strokeStyle = '#d2d9e8';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(gx - 28, gy - 1);
+        ctx.lineTo(gx - 55, gy + 2);
+        ctx.lineTo(gx - 74, gy + 4);
+        ctx.stroke();
+
+        // Pale open hand / fingers reaching forward
+        ctx.fillStyle = '#d2d9e8';
+        ctx.beginPath();
+        ctx.arc(gx - 75, gy + 4, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(gx - 79, gy + 3, 4, 1.5); // extended fingers
+
+        // --- BROKEN VINTAGE DOLL / KEEPSAKE IN THE RUBBLE ---
+        const dollX = gx - 32;
+        const dollY = gy + 11;
+        // Porcelain baby doll head with crack
+        ctx.fillStyle = '#dedad4';
+        ctx.beginPath();
+        ctx.arc(dollX, dollY, 4, 0, Math.PI * 2);
+        ctx.fill();
+        // Eye and crack
+        ctx.fillStyle = '#222222';
+        ctx.fillRect(dollX - 1.5, dollY - 1, 1, 1);
+        ctx.strokeStyle = '#664444';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(dollX - 1, dollY - 3);
+        ctx.lineTo(dollX + 2, dollY + 2);
+        ctx.stroke();
+        // Faded red hair ribbon
+        ctx.fillStyle = '#aa2222';
+        ctx.fillRect(dollX + 2, dollY - 2, 4, 2);
+
+        // --- THE GLOWING MEMORY STONE ---
+        // Resting inches from her fingertips, radiating tragic ethereal beauty
+        const stoneX = gx - 88;
+        const stoneY = gy + 3 + Math.sin(t * 2.2) * 1.5;
+        const pulse = Math.sin(t * 3.0) * 0.2 + 0.8;
+
+        // Dynamic light cast by the memory stone on her hand and the dust
+        const stoneGlow = ctx.createRadialGradient(stoneX, stoneY, 2, stoneX, stoneY, 75 * pulse);
+        stoneGlow.addColorStop(0.0, 'rgba(255, 255, 255, 0.95)');
+        stoneGlow.addColorStop(0.2, `rgba(0, 240, 255, ${0.75 * pulse})`);
+        stoneGlow.addColorStop(0.5, `rgba(255, 170, 50, ${0.40 * pulse})`); // memory stone warm agony
+        stoneGlow.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+
+        ctx.fillStyle = stoneGlow;
+        ctx.beginPath();
+        ctx.arc(stoneX, stoneY, 75 * pulse, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Faceted crystal diamond body
+        ctx.save();
+        ctx.translate(stoneX, stoneY);
+        ctx.rotate(Math.sin(t * 1.2) * 0.1);
+
+        // Diamond polygon
+        ctx.fillStyle = '#e8ffff';
+        ctx.beginPath();
+        ctx.moveTo(0, -9);
+        ctx.lineTo(7, 0);
+        ctx.lineTo(0, 9);
+        ctx.lineTo(-7, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        // Inner crystalline facets
+        ctx.strokeStyle = 'rgba(0, 180, 230, 0.7)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, -9); ctx.lineTo(0, 9);
+        ctx.moveTo(-7, 0); ctx.lineTo(7, 0);
+        ctx.stroke();
+
+        ctx.restore();
+
+        // Ethereal soul dust floating up from her form
+        ctx.fillStyle = 'rgba(160, 230, 255, 0.55)';
+        for (let i = 0; i < 4; i++) {
+            const mx = gx - 30 - Math.sin(t * 1.5 + i) * 25;
+            const my = gy - 12 - ((t * 25 + i * 18) % 60);
+            ctx.beginPath();
+            ctx.arc(mx, my, 1.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.restore();
+    }
+
+    // 5. The Listener Lurking in the Overhead Shadows
+    drawMenuListenerLurking(ctx, w, h, t) {
+        ctx.save();
+
+        const lx = w * 0.50;
+        const ly = h * 0.13;
+        const headTilt = Math.sin(t * 0.8) * 0.22;
+        const eyePulse = Math.sin(t * 2.8) * 0.25 + 0.75;
+
+        ctx.translate(lx, ly);
+        ctx.rotate(headTilt);
+
+        // Deep shadow surrounding the monster
+        const shadowGlow = ctx.createRadialGradient(0, 0, 10, 0, 0, 90);
+        shadowGlow.addColorStop(0, 'rgba(0, 0, 0, 0.95)');
+        shadowGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = shadowGlow;
+        ctx.beginPath();
+        ctx.arc(0, 0, 90, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Cracked porcelain baby doll head
+        ctx.fillStyle = '#dcd8ce';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 20, 24, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Fine cracks on porcelain forehead
+        ctx.strokeStyle = '#5a4e48';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-4, -20); ctx.lineTo(2, -10); ctx.lineTo(-2, -3);
+        ctx.moveTo(6, -14); ctx.lineTo(12, -7);
+        ctx.stroke();
+
+        // Weeping glowing crimson eyes (The Listener's true horror)
+        const eyeOffsets = [-8, 8];
+        for (const ex of eyeOffsets) {
+            // Intense red radial searchlight
+            const redGlow = ctx.createRadialGradient(ex, -3, 1, ex, -3, 24 * eyePulse);
+            redGlow.addColorStop(0.0, 'rgba(255, 34, 34, 0.95)');
+            redGlow.addColorStop(0.35, 'rgba(255, 34, 34, 0.45)');
+            redGlow.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = redGlow;
+            ctx.beginPath();
+            ctx.arc(ex, -3, 24 * eyePulse, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Pupil core
+            ctx.fillStyle = '#ff1111';
+            ctx.beginPath();
+            ctx.arc(ex, -3, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Downward blood tear trail
+            ctx.fillStyle = 'rgba(180, 20, 20, 0.65)';
+            ctx.fillRect(ex - 0.75, -1, 1.5, 9);
+        }
+
+        // White lips and red teeth grin
+        ctx.fillStyle = '#f0f0f5';
+        ctx.beginPath();
+        ctx.arc(0, 11, 7, 0, Math.PI);
+        ctx.fill();
+
+        ctx.fillStyle = '#bb1111';
+        for (let i = -4; i <= 4; i += 2) {
+            ctx.fillRect(i, 11, 1.2, 3);
+        }
+
+        // Faint acoustic hearing shockwaves radiating from ears
+        ctx.strokeStyle = `rgba(255, 50, 50, ${0.25 * eyePulse})`;
+        ctx.lineWidth = 1;
+        const waveR = ((t * 35) % 60);
+        ctx.beginPath();
+        ctx.arc(-18, 0, waveR * 0.6, Math.PI * 0.7, Math.PI * 1.3);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(18, 0, waveR * 0.6, -Math.PI * 0.3, Math.PI * 0.3);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    // 6. Volumetric Ground Mist, Water Ripples, and Drifting Embers
+    drawMenuAtmosphere(ctx, w, h, t) {
+        ctx.save();
+
+        const platformY = h * 0.72;
+
+        // Ground fog layers drifting along the subway platform
+        const fogColors = [
+            'rgba(14, 22, 38, 0.38)',
+            'rgba(10, 16, 28, 0.45)'
+        ];
+
+        for (let layer = 0; layer < 2; layer++) {
+            ctx.fillStyle = fogColors[layer];
+            ctx.beginPath();
+            ctx.moveTo(0, h);
+
+            const speed = (layer === 0) ? 0.35 : 0.2;
+            const baseY = platformY + 10 + layer * 16;
+
+            for (let x = 0; x <= w; x += 30) {
+                const waveY = baseY + Math.sin(x * 0.008 + t * speed) * 8 + Math.cos(x * 0.015 - t * 0.2) * 5;
+                ctx.lineTo(x, waveY);
+            }
+
+            ctx.lineTo(w, h);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // Concentric water drop ripples in puddles
+        const rippleR = ((t * 18) % 35);
+        const rippleAlpha = Math.max(0, 1.0 - rippleR / 35);
+        ctx.strokeStyle = `rgba(100, 180, 240, ${0.4 * rippleAlpha})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(w * 0.28, platformY + 24, rippleR * 1.6, rippleR * 0.5, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    // 7. Cinematic Dark Horror Vignette
+    drawMenuVignette(ctx, w, h) {
+        const vig = ctx.createRadialGradient(
+            w * 0.5, h * 0.45, Math.min(w, h) * 0.25,
+            w * 0.5, h * 0.45, Math.max(w, h) * 0.78
+        );
+        vig.addColorStop(0.0, 'rgba(0, 0, 0, 0.0)');
+        vig.addColorStop(0.65, 'rgba(2, 3, 6, 0.55)');
+        vig.addColorStop(1.0, 'rgba(1, 2, 4, 0.94)');
+
+        ctx.fillStyle = vig;
+        ctx.fillRect(0, 0, w, h);
     }
     
     // Draw calibration screen

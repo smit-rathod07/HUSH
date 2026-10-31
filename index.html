@@ -15,22 +15,78 @@
     <div id="overlay" class="overlay">
         <!-- Main Menu -->
         <div id="menuScreen" class="screen active">
+            <!-- Atmospheric Corner Spider Webs -->
+            <svg class="spider-web top-left" viewBox="0 0 200 200" fill="none">
+                <path d="M0,0 L200,0 M0,0 L185,55 M0,0 L145,115 M0,0 L95,165 M0,0 L40,190 M0,0 L0,200" stroke="rgba(215, 230, 255, 0.35)" stroke-width="1.2"/>
+                <path d="M35,0 Q30,16 25,25 Q16,30 0,35" stroke="rgba(195, 215, 240, 0.3)" stroke-width="0.9"/>
+                <path d="M70,0 Q62,32 50,50 Q32,62 0,70" stroke="rgba(195, 215, 240, 0.3)" stroke-width="0.9"/>
+                <path d="M110,0 Q100,50 78,78 Q50,100 0,110" stroke="rgba(195, 215, 240, 0.28)" stroke-width="0.9"/>
+                <path d="M150,0 Q138,68 106,106 Q68,138 0,150" stroke="rgba(195, 215, 240, 0.25)" stroke-width="0.9"/>
+                <path d="M190,0 Q174,86 135,135 Q86,174 0,190" stroke="rgba(195, 215, 240, 0.22)" stroke-width="0.8"/>
+            </svg>
+            <svg class="spider-web top-right" viewBox="0 0 200 200" fill="none">
+                <path d="M200,0 L0,0 M200,0 L15,55 M200,0 L55,115 M200,0 L105,165 M200,0 L160,190 M200,0 L200,200" stroke="rgba(215, 230, 255, 0.35)" stroke-width="1.2"/>
+                <path d="M165,0 Q170,16 175,25 Q184,30 200,35" stroke="rgba(195, 215, 240, 0.3)" stroke-width="0.9"/>
+                <path d="M130,0 Q138,32 150,50 Q168,62 200,70" stroke="rgba(195, 215, 240, 0.3)" stroke-width="0.9"/>
+                <path d="M90,0 Q100,50 122,78 Q150,100 200,110" stroke="rgba(195, 215, 240, 0.28)" stroke-width="0.9"/>
+                <path d="M50,0 Q62,68 94,106 Q132,138 200,150" stroke="rgba(195, 215, 240, 0.25)" stroke-width="0.9"/>
+                <path d="M10,0 Q26,86 65,135 Q114,174 200,190" stroke="rgba(195, 215, 240, 0.22)" stroke-width="0.8"/>
+            </svg>
+            <svg class="spider-web bottom-left" viewBox="0 0 200 200" fill="none">
+                <path d="M0,200 L200,200 M0,200 L180,145 M0,200 L140,90 M0,200 L90,40 M0,200 L0,0" stroke="rgba(215, 230, 255, 0.28)" stroke-width="1.1"/>
+                <path d="M40,200 Q35,182 28,172 Q18,165 0,160" stroke="rgba(195, 215, 240, 0.25)" stroke-width="0.8"/>
+                <path d="M85,200 Q74,162 58,142 Q38,126 0,120" stroke="rgba(195, 215, 240, 0.22)" stroke-width="0.8"/>
+                <path d="M135,200 Q118,142 92,112 Q60,88 0,80" stroke="rgba(195, 215, 240, 0.2)" stroke-width="0.8"/>
+                <path d="M185,200 Q160,120 125,82 Q82,50 0,40" stroke="rgba(195, 215, 240, 0.18)" stroke-width="0.8"/>
+            </svg>
+
+            <!-- Warning Tagline Header -->
+            <div class="menu-tagline-badge">
+                <span class="pulse-dot"></span>
+                <span>SECTOR 4 COLLAPSED SUBWAY &bull; THE LISTENER AWAKENS</span>
+            </div>
+
+            <!-- The Listener's glowing red eyes watching behind title -->
             <div class="menu-eyes">
                 <div class="eye left"></div>
                 <div class="eye right"></div>
             </div>
-            <h1 class="game-title">HUSH</h1>
+
+            <!-- Horror Title -->
+            <h1 class="game-title glitch-text" data-text="HUSH">HUSH</h1>
             <p class="subtitle">The loudest thing in the room is you.</p>
+            <p class="menu-lore-hint">"She never stopped crying in the dark. He never stopped running. And now... he hears every breath you take."</p>
+
             <div class="menu-divider"></div>
 
-            <!-- Multiplayer Action Buttons -->
+            <!-- Horror Action Buttons -->
             <div class="menu-action-buttons">
-                <button id="soloBtn" class="menu-btn primary">SOLO GAME</button>
-                <button id="createGroupBtn" class="menu-btn secondary">CREATE GROUP</button>
-                <button id="joinGroupBtn" class="menu-btn secondary">JOIN GROUP</button>
+                <button id="soloBtn" class="menu-btn primary horror-btn">
+                    <span class="btn-icon">💀</span>
+                    <span class="btn-label">SOLO EXPEDITION</span>
+                </button>
+                <button id="createGroupBtn" class="menu-btn secondary horror-btn">
+                    <span class="btn-icon">📻</span>
+                    <span class="btn-label">CREATE SQUAD LOBBY</span>
+                </button>
+                <button id="joinGroupBtn" class="menu-btn secondary horror-btn">
+                    <span class="btn-icon">🔗</span>
+                    <span class="btn-label">JOIN SQUAD</span>
+                </button>
             </div>
 
-            <p class="instruction pulse">Select mode or click anywhere for Solo</p>
+            <p class="instruction pulse">Click anywhere or choose a mode to enter the silence</p>
+
+            <!-- Scene Context Indicators (Calling attention to running soul & dead girl) -->
+            <div class="scene-annotation left-annotation">
+                <span class="scene-dot soul-dot"></span>
+                <span>RUNNING SOUL: The Eternal Sprint</span>
+            </div>
+            <div class="scene-annotation right-annotation">
+                <span class="scene-dot girl-dot"></span>
+                <span>COLLAPSED RUBBLE: The Lost Girl & Memory Stone 💎</span>
+            </div>
+
             <div class="controls-hint">
                 <p>🎙️ <b>Microphone</b> detects voice &bull; 🎧 Proximity 3D Voice enabled</p>
                 <p>Voice Keys: <b>T</b> Toggle Mic &bull; <b>V</b> (Hold to speak) &bull; <b>1</b> Whisper &bull; <b>2</b> Talk &bull; <b>3</b> Scream</p>

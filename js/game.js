@@ -200,6 +200,24 @@ class Game {
         const cancelJoinBtn = document.getElementById('cancelJoinBtn');
         const joinCodeInput = document.getElementById('joinCodeInput');
 
+        const addHoverAudio = (btn) => {
+            if (btn) {
+                btn.addEventListener('mouseenter', () => {
+                    if (this.audio) {
+                        try {
+                            const ctx = this.audio.getAudioContext();
+                            if (ctx && ctx.state === 'running') {
+                                this.audio.playSound('whisper');
+                            }
+                        } catch (err) {}
+                    }
+                });
+            }
+        };
+        addHoverAudio(soloBtn);
+        addHoverAudio(createGroupBtn);
+        addHoverAudio(joinGroupBtn);
+
         if (soloBtn) {
             soloBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
