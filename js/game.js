@@ -170,8 +170,12 @@ class Game {
             }
         };
 
-        this.network.onPeerChangeCallback = (peers) => {
-            this.updateLobbyPlayerList(peers);
+        this.network.onPlayerChangeCallback = () => {
+            this.updateLobbyPlayerList();
+        };
+
+        this.network.onPeerChangeCallback = () => {
+            this.updateLobbyPlayerList();
         };
     }
 
@@ -200,11 +204,16 @@ class Game {
                 e.stopPropagation();
                 if (groupModal) groupModal.classList.remove('hidden');
                 if (this.network) {
-                    this.network.createGroup(null, (roomCode) => {
+                    const code = this.network.createGroup(null, (roomCode) => {
                         const codeDisplay = document.getElementById('roomCodeDisplay');
-                        if (codeDisplay) codeDisplay.textContent = roomCode;
-                        this.updateLobbyPlayerList(this.network.peers);
+                        const finalCode = (typeof roomCode === 'string') ? roomCode : this.network.roomCode;
+                        if (codeDisplay && finalCode) codeDisplay.textContent = finalCode;
+                        this.updateLobbyPlayerList();
                     });
+                    const codeDisplay = document.getElementById('roomCodeDisplay');
+                    const finalCode = (typeof code === 'string') ? code : this.network.roomCode;
+                    if (codeDisplay && finalCode) codeDisplay.textContent = finalCode;
+                    this.updateLobbyPlayerList();
                 }
             });
         }
@@ -213,13 +222,19 @@ class Game {
             copyCodeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const code = this.network ? this.network.roomCode : '';
-                if (code && navigator.clipboard) {
-                    navigator.clipboard.writeText(code).then(() => {
+                if (code) {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(code).then(() => {
+                            copyCodeBtn.textContent = 'COPIED!';
+                            setTimeout(() => { copyCodeBtn.textContent = 'COPY CODE'; }, 2000);
+                        }).catch(() => {
+                            copyCodeBtn.textContent = 'COPIED!';
+                            setTimeout(() => { copyCodeBtn.textContent = 'COPY CODE'; }, 2000);
+                        });
+                    } else {
                         copyCodeBtn.textContent = 'COPIED!';
-                        setTimeout(() => { copyCodeBtn.textContent = 'COPY'; }, 2000);
-                    }).catch(() => {
-                        copyCodeBtn.textContent = 'COPIED!';
-                    });
+                        setTimeout(() => { copyCodeBtn.textContent = 'COPY CODE'; }, 2000);
+                    }
                 }
             });
         }
@@ -265,9 +280,9 @@ class Game {
                 }
                 if (status) { status.textContent = 'Connecting to room ' + code + '...'; status.className = 'modal-status pending'; }
                 if (this.network) {
-                    this.network.joinGroup(code, () => {
+                    this.network.joinGroup(code, (connectedRoom) => {
                         if (status) {
-                            status.textContent = 'Connected! Waiting for host to launch the game...';
+                            status.textContent = `Connected to ${connectedRoom}! Waiting for host to launch the game...`;
                             status.className = 'modal-status success';
                         }
                     }, (err) => {
@@ -288,22 +303,28 @@ class Game {
         }
     }
 
-    updateLobbyPlayerList(peers) {
+    updateLobbyPlayerList() {
         const list = document.getElementById('lobbyPlayersList');
         const countDisplay = document.getElementById('playerCountDisplay');
         if (!list) return;
 
-        const count = 1 + (peers ? peers.size : 0);
+        const players = this.network ? this.network.getPlayerList() : [];
+        const count = players.length > 0 ? players.length : 1;
         if (countDisplay) countDisplay.textContent = count;
 
-        list.innerHTML = `<li class="player-item host">👑 You (${this.network ? this.network.localPlayerName : 'Host'}) - Ready</li>`;
-        if (peers) {
-            for (const [peerId, peer] of peers) {
-                const li = document.createElement('li');
-                li.className = 'player-item';
-                li.innerHTML = `👤 ${peer.name || 'Friend (' + peerId.slice(-4) + ')'} - Joined`;
-                list.appendChild(li);
-            }
+        list.innerHTML = '';
+        if (players.length === 0) {
+            const hostName = (this.network && this.network.playerName) ? this.network.playerName : 'Player_1';
+            list.innerHTML = `<li class="player-item host">👑 ${hostName} (You) [Host] - Ready</li>`;
+            return;
+        }
+
+        for (const p of players) {
+            const li = document.createElement('li');
+            li.className = p.isHost ? 'player-item host' : 'player-item';
+            const icon = p.isHost ? '👑' : '👤';
+            li.textContent = `${icon} ${p.name} - Ready`;
+            list.appendChild(li);
         }
     }
 

@@ -32,7 +32,28 @@ class NetworkManager {
         this.syncTimer = 0;
         this.syncInterval = 0.05; // 20 updates per second (50ms)
         this.onPlayerChangeCallback = null;
+        this.onPeerChangeCallback = null;
         this.onEventCallback = null;
+    }
+
+    get localPlayerName() {
+        return this.playerName;
+    }
+    set localPlayerName(val) {
+        this.playerName = val;
+    }
+
+    /**
+     * Notify listeners of player/lobby list updates
+     */
+    notifyPlayerChange() {
+        const list = this.getPlayerList();
+        if (typeof this.onPlayerChangeCallback === 'function') {
+            try { this.onPlayerChangeCallback(list); } catch (e) {}
+        }
+        if (typeof this.onPeerChangeCallback === 'function') {
+            try { this.onPeerChangeCallback(list); } catch (e) {}
+        }
     }
 
     /**
@@ -73,24 +94,33 @@ class NetworkManager {
     /**
      * Create a multiplayer group / room as Host
      * @param {string} customCode
-     * @param {Function} onPlayerListChange
+     * @param {Function} callback (roomCode, playerList)
+     * @returns {string} The generated room code (e.g. HUSH-7A9B)
      */
-    async createGroup(customCode, onPlayerListChange) {
+    createGroup(customCode, callback) {
         this.isHost = true;
-        this.roomCode = customCode || this.generateRoomCode();
+        this.roomCode = (typeof customCode === 'string' && customCode.trim()) ? customCode.trim().toUpperCase() : this.generateRoomCode();
         this.playerColorIndex = 0;
-        this.onPlayerChangeCallback = onPlayerListChange;
 
-        await this.initLocalVoice();
+        if (typeof callback === 'function') {
+            this.onPlayerChangeCallback = (list) => {
+                callback(this.roomCode, list);
+            };
+            callback(this.roomCode, this.getPlayerList());
+        }
+        this.notifyPlayerChange();
+
+        // Initialize voice in background
+        this.initLocalVoice().catch((e) => {
+            console.warn('Voice init warning:', e);
+        });
 
         // Unique Peer ID prefixed to prevent collisions on public broker
         const normalizedPeerId = 'hush-group-' + this.roomCode.toLowerCase().replace(/[^a-z0-9]/g, '');
 
         if (typeof Peer === 'undefined') {
             console.warn('PeerJS library not loaded, falling back to local BroadcastChannel.');
-            if (this.onPlayerChangeCallback) {
-                this.onPlayerChangeCallback(this.getPlayerList());
-            }
+            this.notifyPlayerChange();
             return this.roomCode;
         }
 
@@ -109,9 +139,7 @@ class NetworkManager {
             this.peer.on('open', (id) => {
                 this.peerId = id;
                 console.log(`[Multiplayer] Host created group with room code: ${this.roomCode}`);
-                if (this.onPlayerChangeCallback) {
-                    this.onPlayerChangeCallback(this.getPlayerList());
-                }
+                this.notifyPlayerChange();
             });
 
             this.peer.on('connection', (conn) => {
@@ -157,7 +185,7 @@ class NetworkManager {
      * @param {Function} onConnected
      * @param {Function} onError
      */
-    async joinGroup(code, onConnected, onError) {
+    joinGroup(code, onConnected, onError) {
         if (!code) {
             if (onError) onError('Please enter a valid room code.');
             return;
@@ -165,7 +193,7 @@ class NetworkManager {
 
         this.isHost = false;
         this.roomCode = code.trim().toUpperCase();
-        await this.initLocalVoice();
+        this.initLocalVoice().catch(() => {});
 
         const hostPeerId = 'hush-group-' + this.roomCode.toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -256,9 +284,7 @@ class NetworkManager {
                 colorIndex: this.isHost ? 0 : (Object.keys(this.remotePlayers).length + 1)
             });
 
-            if (this.onPlayerChangeCallback) {
-                this.onPlayerChangeCallback(this.getPlayerList());
-            }
+            this.notifyPlayerChange();
         });
 
         conn.on('data', (data) => {
@@ -298,9 +324,7 @@ class NetworkManager {
                     isTalking: false,
                     distance: 0
                 };
-                if (this.onPlayerChangeCallback) {
-                    this.onPlayerChangeCallback(this.getPlayerList());
-                }
+                this.notifyPlayerChange();
                 break;
 
             case 'PLAYER_STATE':
@@ -310,6 +334,7 @@ class NetworkManager {
                         name: data.name || 'Friend',
                         colorIndex: data.colorIndex || 1
                     };
+                    this.notifyPlayerChange();
                 }
                 const rp = this.remotePlayers[peerId];
                 rp.x = data.x;
@@ -362,9 +387,7 @@ class NetworkManager {
                     name: data.name || 'Friend',
                     colorIndex: data.colorIndex || 1
                 };
-                if (this.onPlayerChangeCallback) {
-                    this.onPlayerChangeCallback(this.getPlayerList());
-                }
+                this.notifyPlayerChange();
             }
             const rp = this.remotePlayers[pid];
             rp.x = data.x;
@@ -399,6 +422,11 @@ class NetworkManager {
         }
     }
 
+    broadcastAction(type, data = {}) {
+        const actionObj = (typeof type === 'string') ? { type, ...data, senderName: this.playerName } : type;
+        return this.sendAction(actionObj);
+    }
+
     /**
      * Broadcast payload to all connected peers
      */
@@ -422,9 +450,7 @@ class NetworkManager {
         if (window.audioManager && typeof window.audioManager.removePeerStream === 'function') {
             window.audioManager.removePeerStream(peerId);
         }
-        if (this.onPlayerChangeCallback) {
-            this.onPlayerChangeCallback(this.getPlayerList());
-        }
+        this.notifyPlayerChange();
     }
 
     /**
