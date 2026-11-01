@@ -350,8 +350,29 @@ class NetworkManager {
                 rp.isTalking = !!data.isTalking;
                 break;
 
+            case 'GHOSTS_STATE':
+                // Client receives states for all 3 ghosts from Host
+                if (!this.isHost && window.hushGame && Array.isArray(data.ghosts)) {
+                    const game = window.hushGame;
+                    if (game.listeners) {
+                        data.ghosts.forEach((gd, idx) => {
+                            const l = game.listeners[idx];
+                            if (l) {
+                                l.x = gd.x;
+                                l.y = gd.y;
+                                l.angle = gd.angle;
+                                l.state = gd.state;
+                                if (gd.isDead && !l.isDead) {
+                                    l.banish();
+                                }
+                            }
+                        });
+                    }
+                }
+                break;
+
             case 'GHOST_STATE':
-                // Client receives ghost position and state from Host
+                // Backward compatibility single ghost message
                 if (!this.isHost && window.hushGame && window.hushGame.listener) {
                     const l = window.hushGame.listener;
                     l.x = data.x;
@@ -561,19 +582,98 @@ class NetworkManager {
                 });
             }
 
-            // If Host, broadcast ghost state
-            if (this.isHost && listener) {
-                const ghostMsg = {
-                    type: 'GHOST_STATE',
-                    x: Math.round(listener.x),
-                    y: Math.round(listener.y),
-                    angle: listener.angle,
-                    state: listener.state,
-                    isDead: !!listener.isDead
-                };
-                this.broadcast(ghostMsg);
+            // If Host, broadcast ghost states (all 3 Listeners)
+            if (this.isHost) {
+                const ghostList = Array.isArray(listener) ? listener : (listener ? [listener] : []);
+                if (ghostList.length > 0) {
+                    const ghostsData = ghostList.map((g, idx) => ({
+                        id: g.id !== undefined ? g.id : idx,
+                        x: Math.round(g.x),
+                        y: Math.round(g.y),
+                        angle: g.angle,
+                        state: g.state,
+                        isDead: !!g.isDead
+                    }));
+
+                    this.broadcast({
+                        type: 'GHOSTS_STATE',
+                        ghosts: ghostsData
+                    });
+
+                    // Backward compatibility single ghost message
+                    const primary = ghostList[0];
+                    if (primary) {
+                        this.broadcast({
+                            type: 'GHOST_STATE',
+                            x: Math.round(primary.x),
+                            y: Math.round(primary.y),
+                            angle: primary.angle,
+                            state: primary.state,
+                            isDead: !!primary.isDead
+                        });
+                    }
+                }
             }
         }
+    }
+
+    /**
+     * Check if entire squad can escape together:
+     * - Every member (local and connected remote) must have collected 3 stones
+     * - Every member must be gathered at the exit (within escapeRadius)
+     * @param {Object} localPlayer
+     * @param {Object} exitPos
+     * @param {number} escapeRadius
+     * @returns {Object} { canEscape, allHaveStones, allAtExit, arrivedCount, totalCount, missingStonesNames }
+     */
+    canTeamEscape(localPlayer, exitPos, escapeRadius = ESCAPE_GROUP_RADIUS || 240) {
+        const totalNeeded = (typeof TOTAL_STONES !== 'undefined') ? TOTAL_STONES : 3;
+        const allPlayers = [
+            {
+                id: this.peerId || 'local',
+                name: this.playerName,
+                stonesCollected: localPlayer ? localPlayer.stonesCollected : 0,
+                x: localPlayer ? localPlayer.x : 0,
+                y: localPlayer ? localPlayer.y : 0
+            }
+        ];
+
+        for (const rp of Object.values(this.remotePlayers)) {
+            allPlayers.push({
+                id: rp.id,
+                name: rp.name || 'Teammate',
+                stonesCollected: rp.stonesCollected || 0,
+                x: rp.x || 0,
+                y: rp.y || 0
+            });
+        }
+
+        const totalCount = allPlayers.length;
+        let allHaveStones = true;
+        let missingStonesNames = [];
+        let arrivedCount = 0;
+
+        for (const p of allPlayers) {
+            if (p.stonesCollected < totalNeeded) {
+                allHaveStones = false;
+                missingStonesNames.push(p.name);
+            }
+            if (exitPos && dist(p.x, p.y, exitPos.x, exitPos.y) <= escapeRadius) {
+                arrivedCount++;
+            }
+        }
+
+        const allAtExit = (arrivedCount === totalCount);
+        const canEscape = allHaveStones && allAtExit;
+
+        return {
+            canEscape,
+            allHaveStones,
+            allAtExit,
+            arrivedCount,
+            totalCount,
+            missingStonesNames
+        };
     }
 }
 

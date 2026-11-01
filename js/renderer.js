@@ -193,8 +193,9 @@ class Renderer {
         
         this.drawParticles(dt);
         
-        if (listener) {
-            this.drawListener(listener);
+        const ghostList = Array.isArray(listener) ? listener : (listener ? [listener] : []);
+        for (const l of ghostList) {
+            if (l) this.drawListener(l);
         }
         
         if (player) {
@@ -214,20 +215,33 @@ class Renderer {
         }
         
         // 5. The Listener's faint red eyes visible in the dark if within 300px
-        if (listener && player) {
-            const d = dist(player.x, player.y, listener.x, listener.y);
-            if (d <= 300 && !this.isListenerLit(listener, player)) {
-                this.drawDarkListenerEyes(listener);
+        for (const l of ghostList) {
+            if (l && player && !l.isDead) {
+                const d = dist(player.x, player.y, l.x, l.y);
+                if (d <= 300 && !this.isListenerLit(l, player)) {
+                    this.drawDarkListenerEyes(l);
+                }
             }
         }
         
-        // 6. Proximity heartbeat warning vignette
-        if (listener && player) {
-            this.drawProximityWarning(listener, player);
+        // 6. Proximity heartbeat warning vignette (tracks closest active ghost)
+        let closestActiveGhost = null;
+        let minGhostD = Infinity;
+        for (const l of ghostList) {
+            if (l && !l.isDead && player) {
+                const d = dist(player.x, player.y, l.x, l.y);
+                if (d < minGhostD) {
+                    minGhostD = d;
+                    closestActiveGhost = l;
+                }
+            }
+        }
+        if (closestActiveGhost && player) {
+            this.drawProximityWarning(closestActiveGhost, player);
         }
         
         // 7. Heads-Up Display (screen space)
-        this.drawHUD(player, audioManager, listener, gameState);
+        this.drawHUD(player, audioManager, (closestActiveGhost || ghostList[0] || listener), gameState);
         
         // 8. Room Name Banner
         if (this.currentRoomName && this.roomNameTimer < this.roomNameDuration) {
@@ -1586,13 +1600,21 @@ class Renderer {
             if (pLabel.length > 15) pLabel = pLabel.substr(0, 14) + '…';
             ctx.fillText(pLabel, boxX + 8, py);
 
-            // Diamond count
+            // Diamond count and squad escape readiness
             ctx.textAlign = 'right';
             const stones = (p.id === 'local' || p.id === network.peerId)
                 ? (player ? player.stonesCollected : 0)
                 : (p.stonesCollected || 0);
-            ctx.fillStyle = stones >= 2 ? '#ffaa33' : '#778899';
-            ctx.fillText(`💎${stones}`, boxX + boxW - 8, py);
+            if (stones >= 3) {
+                ctx.fillStyle = '#33ffaa';
+                ctx.fillText(`💎${stones} [READY]`, boxX + boxW - 8, py);
+            } else if (stones >= 2) {
+                ctx.fillStyle = '#ffaa33';
+                ctx.fillText(`💎${stones}/3`, boxX + boxW - 8, py);
+            } else {
+                ctx.fillStyle = '#778899';
+                ctx.fillText(`💎${stones}/3`, boxX + boxW - 8, py);
+            }
         }
 
         ctx.restore();
@@ -2269,16 +2291,19 @@ class Renderer {
         ctx.fill();
         ctx.shadowBlur = 0;
 
-        // Listener disturbance ping if within 320px
-        if (listener && dist(player.x, player.y, listener.x, listener.y) < 320) {
-            const lx = mapAreaX + (listener.x / TILE_SIZE) * scaleX;
-            const ly = mapAreaY + (listener.y / TILE_SIZE) * scaleY;
-            const pingRadius = ((this.gameTime * 8) % 10) + 1;
-            ctx.strokeStyle = 'rgba(255, 40, 40, 0.7)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.arc(lx, ly, pingRadius, 0, Math.PI * 2);
-            ctx.stroke();
+        // Listeners disturbance ping if within 320px
+        const miniGhostList = Array.isArray(listener) ? listener : (listener ? [listener] : []);
+        for (const l of miniGhostList) {
+            if (l && !l.isDead && dist(player.x, player.y, l.x, l.y) < 320) {
+                const lx = mapAreaX + (l.x / TILE_SIZE) * scaleX;
+                const ly = mapAreaY + (l.y / TILE_SIZE) * scaleY;
+                const pingRadius = ((this.gameTime * 8) % 10) + 1;
+                ctx.strokeStyle = 'rgba(255, 40, 40, 0.7)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(lx, ly, pingRadius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
         }
 
         ctx.restore(); // restore clipping

@@ -135,14 +135,20 @@ const HEARTBEAT_BASE_RATE = 1.0;     // beats per second
 const HEARTBEAT_MAX_RATE = 3.0;
 const HEARTBEAT_NOISE_ADD = 0.05;    // noise added per heartbeat when panicked
 
-// Map settings  
-const MAP_WIDTH = 76;   // tiles (expanded from 60 to 76)
-const MAP_HEIGHT = 62;  // tiles (expanded from 50 to 62)
+// Map settings (expanded by 5x: 170x140 = 23,800 tiles)
+const MAP_WIDTH = 170;   // tiles (5x larger underground facility)
+const MAP_HEIGHT = 140;  // tiles
+
+// Multiple Ghosts (3 identical Listeners)
+const LISTENER_COUNT = 3;
 
 // Stone settings
 const TOTAL_STONES = 3;
 const STONE_HUM_BASE = 0.02;      // base noise from carrying a stone
 const STONE_HUM_PER_STONE = 0.03; // additional noise per extra stone
+
+// Group Escape Settings (Nobody leaves alone - squad must escape together)
+const ESCAPE_GROUP_RADIUS = 240; // pixels: all connected players must be near exit to escape
 
 // Danger line reduction by diamonds/stones (very subtle so normal conversations remain completely safe)
 const DIAMOND_REDUCTION_FRACTION = 0.005; // 0.005 (0.5%) per qualifying player holding >= 2 diamonds

@@ -221,16 +221,35 @@ class Player {
         
         let dx = 0;
         let dy = 0;
-        if (safeInput.up) dy -= 1;
-        if (safeInput.down) dy += 1;
-        if (safeInput.left) dx -= 1;
-        if (safeInput.right) dx += 1;
+        let analogMag = 1.0;
+        
+        if (typeof safeInput.moveX === 'number' && typeof safeInput.moveY === 'number' && (safeInput.moveX !== 0 || safeInput.moveY !== 0)) {
+            dx = safeInput.moveX;
+            dy = safeInput.moveY;
+            const mag = Math.sqrt(dx * dx + dy * dy);
+            if (mag > 0) {
+                analogMag = Math.min(1.0, mag);
+                dx /= mag;
+                dy /= mag;
+            }
+            // If on touch or no mouse target, rotate facing toward joystick vector
+            if (safeInput.isTouch || (typeof targetX !== 'number' || isNaN(targetX))) {
+                this.angle = Math.atan2(dy, dx);
+                this.flashlightAngle = this.angle;
+            }
+        } else {
+            if (safeInput.up) dy -= 1;
+            if (safeInput.down) dy += 1;
+            if (safeInput.left) dx -= 1;
+            if (safeInput.right) dx += 1;
+            if (dx !== 0 || dy !== 0) {
+                const len = Math.sqrt(dx * dx + dy * dy);
+                dx /= len;
+                dy /= len;
+            }
+        }
         
         if (dx !== 0 || dy !== 0) {
-            // Normalize diagonal movement
-            const len = Math.sqrt(dx * dx + dy * dy);
-            dx /= len;
-            dy /= len;
             this.isMoving = true;
             
             // Speed calculation
@@ -243,7 +262,7 @@ class Player {
                 this.isSneaking = true;
                 this.isRunning = false;
             } else {
-                this.speed = PLAYER_SPEED;
+                this.speed = PLAYER_SPEED * analogMag;
                 this.isRunning = false;
                 this.isSneaking = false;
             }
@@ -644,25 +663,34 @@ class Player {
         }
 
         let ghostKilled = false;
-        if (listener && !listener.isDead) {
-            const d = dist(this.x, this.y, listener.x, listener.y);
-            // Holy banish range (up to 380px)
-            if (d <= 380) {
-                listener.banish();
-                ghostKilled = true;
-                if (renderer && renderer.addParticle) {
-                    for (let i = 0; i < 70; i++) {
-                        const ang = Math.random() * Math.PI * 2;
-                        const spd = randomFloat(40, 200);
-                        renderer.addParticle(
-                            listener.x, listener.y,
-                            Math.cos(ang) * spd, Math.sin(ang) * spd,
-                            randomFloat(1.2, 3.0),
-                            randomFloat(5, 12),
-                            '#ffffff',
-                            'smoke'
-                        );
-                    }
+        const candidates = Array.isArray(listener) ? listener : (listener ? [listener] : []);
+        let closestCandidate = null;
+        let closestDist = Infinity;
+        for (const g of candidates) {
+            if (g && !g.isDead) {
+                const d = dist(this.x, this.y, g.x, g.y);
+                if (d <= 420 && d < closestDist) {
+                    closestDist = d;
+                    closestCandidate = g;
+                }
+            }
+        }
+
+        if (closestCandidate) {
+            closestCandidate.banish();
+            ghostKilled = true;
+            if (renderer && renderer.addParticle) {
+                for (let i = 0; i < 70; i++) {
+                    const ang = Math.random() * Math.PI * 2;
+                    const spd = randomFloat(40, 200);
+                    renderer.addParticle(
+                        closestCandidate.x, closestCandidate.y,
+                        Math.cos(ang) * spd, Math.sin(ang) * spd,
+                        randomFloat(1.2, 3.0),
+                        randomFloat(5, 12),
+                        '#ffffff',
+                        'smoke'
+                    );
                 }
             }
         }

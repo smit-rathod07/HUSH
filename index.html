@@ -8,6 +8,23 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤫</text></svg>">
 </head>
 <body>
+    <!-- Landscape Orientation Warning Overlay (for Mobile Portrait Mode) -->
+    <div id="orientationOverlay" class="orientation-overlay">
+        <div class="orientation-box">
+            <div class="rotate-phone-anim">
+                <svg viewBox="0 0 100 100" class="rotate-svg">
+                    <rect class="phone-body" x="28" y="16" width="44" height="68" rx="8" fill="none" stroke="#00ffee" stroke-width="2.5" />
+                    <circle cx="50" cy="74" r="3" fill="#00ffee" />
+                    <line x1="42" y1="24" x2="58" y2="24" stroke="#00ffee" stroke-width="2" stroke-linecap="round" />
+                    <path class="arrow-arc" d="M 76 42 A 28 28 0 0 1 54 78" fill="none" stroke="#ff3366" stroke-width="2.5" stroke-dasharray="4 3" />
+                    <polyline points="50,79 55,79 54,74" fill="none" stroke="#ff3366" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </div>
+            <h2 class="orientation-title">ROTATE DEVICE</h2>
+            <p class="orientation-text">HUSH is engineered for <b>Landscape Mode</b>.<br>Please rotate your device horizontally to play.</p>
+        </div>
+    </div>
+
     <!-- Game Canvas -->
     <canvas id="gameCanvas"></canvas>
 
@@ -205,7 +222,7 @@
             </div>
             <p class="gameover-text">"Don't leave me..."</p>
             <p class="gameover-sub">THE LISTENER CLAIMED ANOTHER SOUL</p>
-            <p class="retry-text pulse">Press [R] to retry</p>
+            <p class="retry-text pulse">Press [R] or tap screen to retry</p>
         </div>
 
         <!-- Victory Screen -->
@@ -217,7 +234,60 @@
                 appeared for one breath before he turned to light.
             </p>
             <p class="victory-sub">You escaped.</p>
-            <p class="retry-text pulse">Press R to play again</p>
+            <p class="retry-text pulse">Press [R] or tap screen to play again</p>
+        </div>
+    </div>
+
+    <!-- Mobile Touch Controls -->
+    <div id="mobileControls" class="mobile-controls">
+        <!-- Left Thumb Virtual Analog Joystick Zone -->
+        <div id="joystickZone" class="joystick-zone">
+            <div id="joystickBase" class="joystick-base">
+                <div id="joystickThumb" class="joystick-thumb"></div>
+            </div>
+        </div>
+
+        <!-- Right Thumb Minimalist Action Buttons -->
+        <div id="touchActions" class="touch-actions">
+            <!-- Utility row -->
+            <div class="touch-row upper-row">
+                <button id="touchMap" class="touch-btn sm-btn" aria-label="Toggle Minimap">
+                    <span class="touch-icon">🗺️</span>
+                    <span class="touch-label">MAP</span>
+                </button>
+                <button id="touchBanish" class="touch-btn sm-btn relic-btn" aria-label="Banish Ghost">
+                    <span class="touch-icon">✨</span>
+                    <span class="touch-label">BANISH</span>
+                </button>
+                <button id="touchThrow" class="touch-btn sm-btn" aria-label="Throw Stone">
+                    <span class="touch-icon">🎯</span>
+                    <span class="touch-label">THROW</span>
+                </button>
+            </div>
+
+            <!-- Primary cluster -->
+            <div class="touch-row lower-row">
+                <button id="touchSneak" class="touch-btn toggle-btn" aria-label="Sneak">
+                    <span class="touch-icon">🤫</span>
+                    <span class="touch-label">SNEAK</span>
+                </button>
+                <button id="touchBreath" class="touch-btn hold-btn" aria-label="Hold Breath">
+                    <span class="touch-icon">🫁</span>
+                    <span class="touch-label">HOLD</span>
+                </button>
+                <button id="touchRun" class="touch-btn toggle-btn" aria-label="Sprint">
+                    <span class="touch-icon">⚡</span>
+                    <span class="touch-label">RUN</span>
+                </button>
+                <button id="touchFlashlight" class="touch-btn" aria-label="Flashlight">
+                    <span class="touch-icon">🔦</span>
+                    <span class="touch-label">LIGHT</span>
+                </button>
+                <button id="touchInteract" class="touch-btn action-main-btn" aria-label="Interact / Take">
+                    <span class="touch-icon">🖐️</span>
+                    <span class="touch-label">TAKE</span>
+                </button>
+            </div>
         </div>
     </div>
 

@@ -927,3 +927,376 @@ input[type="text"] {
 .modal-status.pending { color: #eebb44; }
 .modal-status.success { color: #33ffaa; }
 .modal-status.error { color: #ff5555; }
+
+/* ============================================================
+   MOBILE COMPATIBILITY & ORIENTATION LOCK (LANDSCAPE ONLY)
+   ============================================================ */
+
+/* Orientation Warning Overlay (Default Hidden) */
+.orientation-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 99999;
+    background: radial-gradient(circle at 50% 50%, rgba(20, 12, 18, 0.98) 0%, rgba(5, 5, 8, 0.99) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    box-sizing: border-box;
+}
+
+.orientation-box {
+    max-width: 360px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.rotate-phone-anim {
+    width: 86px;
+    height: 86px;
+    margin-bottom: 0.5rem;
+}
+
+.rotate-svg {
+    width: 100%;
+    height: 100%;
+    animation: phoneTilt 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    transform-origin: 50% 50%;
+    filter: drop-shadow(0 0 14px rgba(0, 255, 238, 0.45));
+}
+
+@keyframes phoneTilt {
+    0%, 20% { transform: rotate(0deg); }
+    45%, 75% { transform: rotate(90deg); }
+    90%, 100% { transform: rotate(0deg); }
+}
+
+.orientation-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #ff3366;
+    letter-spacing: 0.18rem;
+    text-shadow: 0 0 16px rgba(255, 51, 102, 0.55);
+}
+
+.orientation-text {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #a0b2cc;
+    letter-spacing: 0.04rem;
+}
+
+.orientation-text b {
+    color: #00ffee;
+}
+
+/* Enforce Landscape Mode when Device is in Portrait */
+@media screen and (orientation: portrait) and (max-width: 1024px) {
+    .orientation-overlay {
+        display: flex !important;
+    }
+    .mobile-controls {
+        display: none !important;
+    }
+}
+
+/* When in Landscape, Guarantee Orientation Overlay is Hidden */
+@media screen and (orientation: landscape) {
+    .orientation-overlay {
+        display: none !important;
+    }
+}
+
+/* ============================================================
+   MINIMAL MOBILE TOUCH CONTROLS
+   ============================================================ */
+
+.mobile-controls {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 60;
+}
+
+/* Touch controls visible during active gameplay on touch / small screens */
+@media (hover: none) and (pointer: coarse), screen and (max-width: 1024px) {
+    .mobile-controls.visible {
+        display: block;
+    }
+}
+
+/* Left Thumb Virtual Joystick */
+.joystick-zone {
+    position: absolute;
+    bottom: 24px;
+    left: 28px;
+    width: 140px;
+    height: 140px;
+    pointer-events: auto;
+    touch-action: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.joystick-base {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(16, 26, 42, 0.55) 0%, rgba(8, 14, 24, 0.35) 100%);
+    border: 1.5px solid rgba(80, 150, 230, 0.35);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.55), inset 0 0 16px rgba(0, 255, 238, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+}
+
+.joystick-thumb {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0, 255, 238, 0.6) 0%, rgba(15, 65, 95, 0.75) 100%);
+    border: 1.5px solid rgba(0, 255, 238, 0.85);
+    box-shadow: 0 0 12px rgba(0, 255, 238, 0.5);
+    pointer-events: none;
+    will-change: transform;
+}
+
+/* Right Thumb Minimal Action Controls */
+.touch-actions {
+    position: absolute;
+    bottom: 20px;
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+    pointer-events: none;
+}
+
+.touch-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.touch-btn {
+    pointer-events: auto;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    border: 1px solid rgba(90, 140, 190, 0.35);
+    background: rgba(12, 18, 28, 0.55);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    color: #d8e8f8;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    transition: transform 0.06s ease, background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    outline: none;
+}
+
+.touch-btn .touch-icon {
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.touch-btn .touch-label {
+    font-size: 0.5rem;
+    letter-spacing: 0.06rem;
+    font-weight: 700;
+    margin-top: 1px;
+    color: #88aacc;
+    font-family: inherit;
+}
+
+/* Smaller utility buttons on upper row */
+.touch-btn.sm-btn {
+    width: 42px;
+    height: 42px;
+    background: rgba(10, 15, 25, 0.45);
+    border-color: rgba(75, 120, 170, 0.3);
+}
+
+.touch-btn.sm-btn .touch-icon {
+    font-size: 0.95rem;
+}
+
+.touch-btn.sm-btn .touch-label {
+    font-size: 0.44rem;
+}
+
+/* Main action button (Take / Interact) */
+.touch-btn.action-main-btn {
+    width: 58px;
+    height: 58px;
+    background: rgba(18, 55, 36, 0.55);
+    border: 1.5px solid rgba(34, 204, 119, 0.65);
+    box-shadow: 0 0 14px rgba(34, 204, 119, 0.25);
+}
+
+.touch-btn.action-main-btn .touch-label {
+    color: #44ff99;
+}
+
+/* Banish Ghost Relic Button */
+.touch-btn.relic-btn {
+    border-color: rgba(190, 80, 255, 0.6);
+    background: rgba(50, 18, 75, 0.55);
+    box-shadow: 0 0 12px rgba(180, 80, 255, 0.25);
+}
+
+.touch-btn.relic-btn .touch-label {
+    color: #dd99ff;
+}
+
+/* Button Active / Pressed State */
+.touch-btn:active, .touch-btn.active {
+    transform: scale(0.91);
+    background: rgba(0, 255, 238, 0.3);
+    border-color: #00ffee;
+    box-shadow: 0 0 16px rgba(0, 255, 238, 0.55);
+}
+
+/* Toggle Buttons Active (Sneak, Run) */
+.touch-btn.toggle-btn.active {
+    background: rgba(255, 170, 0, 0.35);
+    border-color: #ffaa00;
+    box-shadow: 0 0 14px rgba(255, 170, 0, 0.5);
+}
+
+/* ============================================================
+   RESPONSIVE LANDSCAPE MOBILE POLISH
+   ============================================================ */
+
+@media screen and (max-height: 540px) {
+    .spider-web {
+        width: 140px !important;
+        height: 140px !important;
+        opacity: 0.6;
+    }
+    .menu-tagline-badge {
+        font-size: 0.55rem;
+        padding: 0.15rem 0.55rem;
+        margin-bottom: 0.2rem;
+    }
+    .game-title {
+        font-size: 3.4rem !important;
+        letter-spacing: 1rem !important;
+        margin-bottom: 0.1rem;
+    }
+    .subtitle {
+        font-size: 0.8rem;
+        margin-bottom: 0.2rem;
+    }
+    .menu-lore-hint {
+        font-size: 0.62rem;
+        margin-bottom: 0.3rem;
+        max-width: 520px;
+    }
+    .menu-divider {
+        margin: 0.3rem 0;
+    }
+    .menu-action-buttons {
+        gap: 0.5rem;
+        margin-top: 0.3rem;
+    }
+    .menu-btn {
+        padding: 0.45rem 0.9rem;
+        font-size: 0.72rem;
+    }
+    .instruction {
+        margin-top: 0.3rem;
+        font-size: 0.7rem;
+    }
+    .scene-annotation {
+        display: none !important;
+    }
+    .controls-hint {
+        display: none !important;
+    }
+    .controls-pill-list {
+        display: none !important;
+    }
+    .modal-box {
+        max-width: 90vw;
+        padding: 1rem 1.4rem;
+    }
+    .modal-title {
+        font-size: 1.1rem;
+        margin-bottom: 0.6rem;
+    }
+    #roomCodeDisplay {
+        font-size: 1.8rem;
+        letter-spacing: 0.25rem;
+    }
+    #joinCodeInput {
+        font-size: 1.25rem;
+        padding: 0.5rem 0.8rem;
+    }
+
+    /* More compact touch controls on narrow landscape screens */
+    .joystick-zone {
+        bottom: 12px;
+        left: 14px;
+        width: 120px;
+        height: 120px;
+    }
+    .joystick-base {
+        width: 96px;
+        height: 96px;
+    }
+    .joystick-thumb {
+        width: 40px;
+        height: 40px;
+    }
+    .touch-actions {
+        bottom: 10px;
+        right: 12px;
+        gap: 5px;
+    }
+    .touch-row {
+        gap: 5px;
+    }
+    .touch-btn {
+        width: 44px;
+        height: 44px;
+    }
+    .touch-btn.sm-btn {
+        width: 36px;
+        height: 36px;
+    }
+    .touch-btn.action-main-btn {
+        width: 52px;
+        height: 52px;
+    }
+    .touch-btn .touch-icon {
+        font-size: 0.95rem;
+    }
+    .touch-btn .touch-label {
+        font-size: 0.42rem;
+    }
+}

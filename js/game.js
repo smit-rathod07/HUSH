@@ -10,12 +10,14 @@ class Game {
         this.map = null;
         this.player = null;
         this.listener = null;
+        this.listeners = [];
         this.renderer = null;
         this.audio = null;
 
         // Input state
         this.input = {
             up: false, down: false, left: false, right: false,
+            moveX: 0, moveY: 0, isTouch: false,
             run: false, sneak: false,
             interact: false, hide: false, breath: false,
             flashlight: false, throw: false,
@@ -24,6 +26,10 @@ class Game {
             mouseWorldX: 0, mouseWorldY: 0
         };
         this.keysJustPressed = {};
+        this.touchJoyActive = false;
+        this.touchJoyTouchId = null;
+        this.touchJoyOriginX = 0;
+        this.touchJoyOriginY = 0;
 
         // Timing
         this.lastTime = 0;
@@ -100,8 +106,20 @@ class Game {
             this.setupNetworkCallbacks();
         }
 
-        // Set up input handlers
+        // Set up input handlers (keyboard & mouse)
         this.setupInput();
+
+        // Set up mobile touch controls
+        this.setupTouchControls();
+
+        // Unlock Web Audio context on first user touch gesture (mobile policy)
+        ['touchstart', 'touchend', 'click'].forEach(evt => {
+            window.addEventListener(evt, () => {
+                if (this.audio && this.audio.ctx && this.audio.ctx.state === 'suspended') {
+                    this.audio.ctx.resume();
+                }
+            }, { once: true, passive: true });
+        });
 
         // Set up multiplayer lobby UI
         this.setupMultiplayerUI();
@@ -156,6 +174,103 @@ class Game {
         window.addEventListener('contextmenu', (e) => e.preventDefault());
     }
 
+    setupTouchControls() {
+        const joyBase = document.getElementById('joystickBase');
+        const joyThumb = document.getElementById('joystickThumb');
+        const joyZone = document.getElementById('joystickZone');
+
+        if (joyZone && joyBase && joyThumb) {
+            const maxRadius = 45; // Max thumb offset in pixels
+
+            const handleJoyStart = (e) => {
+                const touch = e.changedTouches[0];
+                if (!touch) return;
+                this.touchJoyActive = true;
+                this.touchJoyTouchId = touch.identifier;
+                const rect = joyBase.getBoundingClientRect();
+                this.touchJoyOriginX = rect.left + rect.width / 2;
+                this.touchJoyOriginY = rect.top + rect.height / 2;
+                handleJoyMove(e);
+            };
+
+            const handleJoyMove = (e) => {
+                if (!this.touchJoyActive) return;
+                let touch = null;
+                for (let i = 0; i < e.touches.length; i++) {
+                    if (e.touches[i].identifier === this.touchJoyTouchId) {
+                        touch = e.touches[i];
+                        break;
+                    }
+                }
+                if (!touch) return;
+
+                let dx = touch.clientX - this.touchJoyOriginX;
+                let dy = touch.clientY - this.touchJoyOriginY;
+                const distVal = Math.sqrt(dx * dx + dy * dy);
+
+                if (distVal > maxRadius) {
+                    dx = (dx / distVal) * maxRadius;
+                    dy = (dy / distVal) * maxRadius;
+                }
+
+                joyThumb.style.transform = `translate(${dx}px, ${dy}px)`;
+
+                const normX = dx / maxRadius;
+                const normY = dy / maxRadius;
+                this.input.moveX = normX;
+                this.input.moveY = normY;
+                this.input.isTouch = true;
+            };
+
+            const handleJoyEnd = (e) => {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === this.touchJoyTouchId) {
+                        this.touchJoyActive = false;
+                        this.touchJoyTouchId = null;
+                        this.input.moveX = 0;
+                        this.input.moveY = 0;
+                        joyThumb.style.transform = 'translate(0px, 0px)';
+                        break;
+                    }
+                }
+            };
+
+            joyZone.addEventListener('touchstart', handleJoyStart, { passive: false });
+            window.addEventListener('touchmove', handleJoyMove, { passive: false });
+            window.addEventListener('touchend', handleJoyEnd, { passive: false });
+            window.addEventListener('touchcancel', handleJoyEnd, { passive: false });
+        }
+
+        // Action Buttons bindings
+        const bindTouchBtn = (id, onDown, onUp) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                btn.classList.add('active');
+                if (typeof onDown === 'function') onDown();
+            }, { passive: false });
+
+            const release = (e) => {
+                e.preventDefault();
+                btn.classList.remove('active');
+                if (typeof onUp === 'function') onUp();
+            };
+            btn.addEventListener('touchend', release, { passive: false });
+            btn.addEventListener('touchcancel', release, { passive: false });
+        };
+
+        bindTouchBtn('touchFlashlight', () => this.handleFlashlight());
+        bindTouchBtn('touchBreath', () => { this.input.breath = true; }, () => { this.input.breath = false; });
+        bindTouchBtn('touchInteract', () => this.handleInteract());
+        bindTouchBtn('touchThrow', () => this.handleThrow());
+        bindTouchBtn('touchBanish', () => this.handleBanishRelic());
+        bindTouchBtn('touchMap', () => this.toggleFullMap());
+        bindTouchBtn('touchSneak', () => { this.input.sneak = !this.input.sneak; if (this.input.sneak) this.input.run = false; });
+        bindTouchBtn('touchRun', () => { this.input.run = !this.input.run; if (this.input.run) this.input.sneak = false; });
+    }
+
     setupNetworkCallbacks() {
         if (!this.network) return;
 
@@ -165,6 +280,9 @@ class Game {
                 if (this.audio) this.audio.playSound('ghost_banish');
                 if (this.renderer) this.renderer.shakeScreen(10);
                 this.showHint('✦ A teammate banished the Listener into oblivion! ✦');
+            } else if (event.type === 'TEAM_ESCAPED') {
+                this.showHint(`✦ ${event.senderName || 'Your squad'} unlocked the exit doors! ESCAPED TOGETHER! ✦`);
+                this.triggerVictory();
             } else if (event.type === 'PLAYER_ESCAPED') {
                 this.showHint(`✦ ${event.senderName || 'A teammate'} has escaped the building! ✦`);
                 if (this.audio) this.audio.playSound('stone_pickup');
@@ -360,16 +478,18 @@ class Game {
             this.showHint("Find the Banishment Relic in the Hospital Wing to destroy the ghost!");
             return;
         }
-        if (!this.listener || this.listener.isDead) {
-            this.showHint("The Listener has already been destroyed!");
+        const targets = (this.listeners && this.listeners.length > 0) ? this.listeners : (this.listener ? [this.listener] : []);
+        const aliveGhosts = targets.filter(g => g && !g.isDead);
+        if (aliveGhosts.length === 0) {
+            this.showHint("All Listeners have already been banished!");
             return;
         }
-        const banished = this.player.useRelic(this.listener, this.network, this.renderer);
+        const banished = this.player.useRelic(targets, this.network, this.renderer);
         if (banished) {
             if (this.audio) this.audio.playSound('ghost_banish');
-            this.showHint("✦ YOU BANISHED THE LISTENER INTO OBLIVION! ✦");
+            this.showHint("✦ YOU BANISHED A LISTENER INTO OBLIVION! ✦");
         } else {
-            this.showHint("The Listener is too far away! Move closer (within 380px) to cast!");
+            this.showHint("The nearest Listener is too far away! Move closer (within 420px) to cast!");
         }
     }
 
@@ -497,6 +617,10 @@ class Game {
             if (this.cutscene) this.cutscene.nextSlide();
             return;
         }
+        if (this.state === GAME_STATE.GAME_OVER || this.state === GAME_STATE.VICTORY) {
+            this.restart();
+            return;
+        }
         if (this.state === GAME_STATE.MENU) {
             this.startCalibration();
         }
@@ -514,6 +638,10 @@ class Game {
             screen.classList.remove('fade-out');
             screen.classList.add('active');
         }
+        const mobileControls = document.getElementById('mobileControls');
+        if (mobileControls) {
+            mobileControls.classList.remove('visible');
+        }
     }
 
     hideAllScreens() {
@@ -523,6 +651,10 @@ class Game {
         });
         const overlay = document.getElementById('overlay');
         if (overlay) overlay.style.pointerEvents = 'none';
+        const mobileControls = document.getElementById('mobileControls');
+        if (mobileControls) {
+            mobileControls.classList.add('visible');
+        }
     }
 
     // ---- Calibration ----
@@ -628,9 +760,20 @@ class Game {
         // Create player at start position
         this.player = new Player(this.map.startPos.x, this.map.startPos.y);
 
-        // Create Listener at its start position
-        this.listener = new Listener(this.map.listenerStartPos.x, this.map.listenerStartPos.y);
-        this.listener.patrolPoints = this.map.patrolPoints;
+        // Create 3 Listeners across Central, West, and East wings
+        this.listeners = [];
+        const startPositions = this.map.listenerStartPositions || [this.map.listenerStartPos];
+        const patrolRoutes = this.map.listenerPatrolRoutes || [this.map.patrolPoints];
+        const ghostCount = (typeof LISTENER_COUNT !== 'undefined') ? LISTENER_COUNT : 3;
+        for (let i = 0; i < ghostCount; i++) {
+            const startP = startPositions[i] || startPositions[0];
+            const route = patrolRoutes[i] || patrolRoutes[0];
+            const ghost = new Listener(startP.x, startP.y);
+            ghost.id = i;
+            ghost.patrolPoints = route;
+            this.listeners.push(ghost);
+        }
+        this.listener = this.listeners[0];
 
         // Start ambient drone sound & atmospheric horror music
         if (this.audio) {
@@ -744,17 +887,33 @@ class Game {
             return;
         }
 
-        // 3. Check for exit chamber / escape machine
+        // 3. Check for exit chamber / escape machine (Group Escape Enforcement)
         const tx = pixelToTile(this.player.x);
         const ty = pixelToTile(this.player.y);
         const nearExit = (this.map.getTile(tx, ty) === TILE.EXIT) ||
-            (this.map.exitPos && dist(this.player.x, this.player.y, this.map.exitPos.x, this.map.exitPos.y) <= this.player.interactRadius);
+            (this.map.exitPos && dist(this.player.x, this.player.y, this.map.exitPos.x, this.map.exitPos.y) <= (typeof ESCAPE_GROUP_RADIUS !== 'undefined' ? ESCAPE_GROUP_RADIUS : 240));
 
         if (nearExit) {
-            if (this.player.stonesCollected >= TOTAL_STONES) {
-                this.triggerVictory();
+            const hasRemotePeers = this.network && Object.keys(this.network.remotePlayers).length > 0;
+            if (hasRemotePeers) {
+                const status = this.network.canTeamEscape(this.player, this.map.exitPos, ESCAPE_GROUP_RADIUS);
+                if (status.canEscape) {
+                    this.network.broadcastAction('TEAM_ESCAPED', {
+                        senderName: this.network.localPlayerName
+                    });
+                    this.showHint("✦ YOUR ENTIRE SQUAD HAS ESCAPED TOGETHER! ✦");
+                    this.triggerVictory();
+                } else if (!status.allHaveStones) {
+                    this.showHint(`✦ SQUAD LOCKED: All players must collect 3 stones! Missing: ${status.missingStonesNames.join(', ')}`);
+                } else {
+                    this.showHint(`✦ CANNOT LEAVE ALONE! All players must gather at the exit doors! (${status.arrivedCount}/${status.totalCount} arrived)`);
+                }
             } else {
-                this.showHint(`Collect all ${TOTAL_STONES} memory stones before you can escape!`);
+                if (this.player.stonesCollected >= TOTAL_STONES) {
+                    this.triggerVictory();
+                } else {
+                    this.showHint(`Collect all ${TOTAL_STONES} memory stones before you can escape! (${this.player.stonesCollected}/${TOTAL_STONES})`);
+                }
             }
             return;
         }
@@ -821,9 +980,15 @@ class Game {
             if (this.renderer) {
                 this.renderer.addParticle(thrown.x, thrown.y, 0, 0, 0.5, 4, '#ccccaa', 'spark');
             }
-            if (this.listener) {
-                // Distract the Listener to the landing spot!
-                this.listener.hearSound(thrown.x, thrown.y, 0.85);
+            // Distract all Listeners within hearing range of the throw landing spot
+            const ghostList = (this.listeners && this.listeners.length > 0) ? this.listeners : (this.listener ? [this.listener] : []);
+            for (const ghost of ghostList) {
+                if (ghost && !ghost.isDead) {
+                    const d = dist(thrown.x, thrown.y, ghost.x, ghost.y);
+                    if (d <= (typeof LISTENER_HEARING_RANGE !== 'undefined' ? LISTENER_HEARING_RANGE : 600)) {
+                        ghost.hearSound(thrown.x, thrown.y, 0.85);
+                    }
+                }
             }
         }
     }
@@ -839,13 +1004,16 @@ class Game {
     // ---- Environmental Building Events ----
 
     triggerRandomBuildingNoise() {
-        if (!this.map || !this.listener) return;
+        if (!this.map) return;
+        const ghostList = (this.listeners && this.listeners.length > 0) ? this.listeners : (this.listener ? [this.listener] : []);
+        if (ghostList.length === 0) return;
 
         const events = ['drip', 'creak', 'clang'];
         const chosen = events[randomInt(0, events.length - 1)];
 
         // Pick a random room or hallway
         const room = this.map.rooms[randomInt(0, this.map.rooms.length - 1)];
+        if (!room) return;
         const rx = tileToPixel(room.x + randomInt(1, Math.max(1, room.w - 2)));
         const ry = tileToPixel(room.y + randomInt(1, Math.max(1, room.h - 2)));
 
@@ -853,14 +1021,18 @@ class Game {
             this.audio.playSound(chosen);
         }
 
-        // Listener investigates sound if it's loud (creak/clang)
+        // Listeners investigate sound if it's loud (creak/clang)
         if (chosen === 'clang' || chosen === 'creak') {
-            const d = dist(this.listener.x, this.listener.y, rx, ry);
-            if (d < LISTENER_HEARING_RANGE * 0.8) {
-                this.listener.lastHeardX = rx;
-                this.listener.lastHeardY = ry;
-                this.listener.lastHeardTime = Date.now();
-                this.listener.enterState(LISTENER_STATE.INVESTIGATE);
+            for (const ghost of ghostList) {
+                if (ghost && !ghost.isDead) {
+                    const d = dist(ghost.x, ghost.y, rx, ry);
+                    if (d < (typeof LISTENER_HEARING_RANGE !== 'undefined' ? LISTENER_HEARING_RANGE : 600) * 0.8) {
+                        ghost.lastHeardX = rx;
+                        ghost.lastHeardY = ry;
+                        ghost.lastHeardTime = Date.now();
+                        ghost.enterState(LISTENER_STATE.INVESTIGATE);
+                    }
+                }
             }
         }
     }
@@ -1102,7 +1274,7 @@ class Game {
 
         // 3. Audio manager, Multiplayer Sync & Dynamic Danger Line
         if (this.network) {
-            this.network.update(dt, this.player, this.listener, this.audio);
+            this.network.update(dt, this.player, this.listeners, this.audio);
             const qualifying = this.network.getQualifyingPlayerCount(this.player);
             if (this.audio) {
                 this.audio.updateDynamicRedLine(qualifying);
@@ -1122,19 +1294,30 @@ class Game {
             const envNoise = this.player ? this.player.getEnvironmentNoise(this.map) : 0;
             this.audio.update(dt, movementNoise, stoneNoise, envNoise);
 
-            // Heartbeat audio scaling
-            if (this.listener && this.player) {
-                const d = this.listener.distToPlayer(this.player);
-                const intensity = clamp(1.0 - d / 400, 0, 1);
+            // Heartbeat audio scaling based on closest active ghost
+            const ghostList = (this.listeners && this.listeners.length > 0) ? this.listeners : (this.listener ? [this.listener] : []);
+            const aliveGhosts = ghostList.filter(g => g && !g.isDead);
+            if (this.player && aliveGhosts.length > 0) {
+                let minGhostDist = Infinity;
+                for (const g of aliveGhosts) {
+                    const d = dist(this.player.x, this.player.y, g.x, g.y);
+                    if (d < minGhostDist) minGhostDist = d;
+                }
+                const intensity = clamp(1.0 - minGhostDist / 420, 0, 1);
                 this.audio.updateHeartbeat(dt, intensity);
             }
 
-            // Noise threshold crossing: Listener hunts!
-            if (this.audio.isAboveRedLine() && this.listener && this.player) {
-                this.listener.hearSound(
-                    this.player.x, this.player.y,
-                    this.audio.getNoiseBar()
-                );
+            // Noise threshold crossing: All active Listeners within hearing range hunt!
+            if (this.audio.isAboveRedLine() && this.player) {
+                for (const ghost of aliveGhosts) {
+                    const d = dist(this.player.x, this.player.y, ghost.x, ghost.y);
+                    if (d <= (typeof LISTENER_HEARING_RANGE !== 'undefined' ? LISTENER_HEARING_RANGE : 600)) {
+                        ghost.hearSound(
+                            this.player.x, this.player.y,
+                            this.audio.getNoiseBar()
+                        );
+                    }
+                }
             }
         }
 
@@ -1146,19 +1329,63 @@ class Game {
             this.triggerRandomBuildingNoise();
         }
 
-        // 5. Update Listener AI
-        if (this.listener && this.player && this.player.alive) {
+        // 5. Update All 3 Listeners AI & Check Kill Collisions
+        if (this.player && this.player.alive) {
             const noiseLevel = this.audio ? this.audio.getNoiseBar() : 0;
-            this.listener.update(dt, this.map, this.player, noiseLevel, this.player.x, this.player.y);
+            let closestActiveGhost = null;
+            let minDistance = Infinity;
 
-            if (!this.player.alive) {
-                this.triggerGameOver();
+            for (const ghost of this.listeners) {
+                if (!ghost || ghost.isDead) continue;
+                ghost.update(dt, this.map, this.player, noiseLevel, this.player.x, this.player.y);
+
+                const d = dist(this.player.x, this.player.y, ghost.x, ghost.y);
+                if (d < minDistance) {
+                    minDistance = d;
+                    closestActiveGhost = ghost;
+                }
+
+                // Check kill collision (30px radius)
+                if (d <= 30 && !this.player.isHiding) {
+                    this.player.alive = false;
+                    this.triggerGameOver();
+                    break;
+                }
+            }
+
+            // Expose closest ghost as this.listener for camera/HUD/effects
+            if (closestActiveGhost) {
+                this.listener = closestActiveGhost;
+            } else if (this.listeners.length > 0) {
+                this.listener = this.listeners[0];
             }
         }
 
         // 6. UI texts
         this.updateRoomName(dt);
         this.updateHint(dt);
+
+        // 7. Group Escape status check near exit doors
+        if (this.player && this.player.alive && this.map && this.map.exitPos) {
+            const tx = pixelToTile(this.player.x);
+            const ty = pixelToTile(this.player.y);
+            const nearExit = (this.map.getTile(tx, ty) === TILE.EXIT) ||
+                (dist(this.player.x, this.player.y, this.map.exitPos.x, this.map.exitPos.y) <= (typeof ESCAPE_GROUP_RADIUS !== 'undefined' ? ESCAPE_GROUP_RADIUS : 240));
+
+            if (nearExit) {
+                const hasRemotePeers = this.network && Object.keys(this.network.remotePlayers).length > 0;
+                if (hasRemotePeers) {
+                    const status = this.network.canTeamEscape(this.player, this.map.exitPos, ESCAPE_GROUP_RADIUS);
+                    if (status.canEscape) {
+                        this.showHint("✦ ALL SQUAD MEMBERS READY! Press [E] to escape together as a group! ✦");
+                    } else if (!status.allHaveStones) {
+                        this.showHint(`✦ SQUAD OBJECTIVE: All players must collect 3 stones! Missing: ${status.missingStonesNames.join(', ')} ✦`);
+                    } else if (!status.allAtExit) {
+                        this.showHint(`✦ WAITING FOR SQUAD: Gather at exit doors to escape! (${status.arrivedCount}/${status.totalCount} arrived) ✦`);
+                    }
+                }
+            }
+        }
 
         // Screen shake triggers
         if (this.audio && this.audio.getNoiseBar() > NOISE_THRESHOLDS.SHOUT && this.renderer) {
@@ -1191,11 +1418,12 @@ class Game {
             return;
         }
 
-        // Multi-state rendering handled through renderer
+        // Multi-state rendering handled through renderer (pass all 3 listeners)
+        const ghostTarget = (this.listeners && this.listeners.length > 0) ? this.listeners : this.listener;
         this.renderer.render(
             this.map,
             this.player,
-            this.listener,
+            ghostTarget,
             this.audio,
             this.state,
             this.dt
@@ -1207,6 +1435,7 @@ class Game {
     }
 
     drawCursor(ctx) {
+        if (this.input.isTouch) return;
         const mx = this.input.mouseX;
         const my = this.input.mouseY;
 
