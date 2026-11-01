@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>HUSH</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=3.0">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤫</text></svg>">
 </head>
 <body>
@@ -20,8 +20,12 @@
                     <polyline points="50,79 55,79 54,74" fill="none" stroke="#ff3366" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
             </div>
-            <h2 class="orientation-title">ROTATE DEVICE</h2>
-            <p class="orientation-text">HUSH is engineered for <b>Landscape Mode</b>.<br>Please rotate your device horizontally to play.</p>
+            <h2 class="orientation-title">LANDSCAPE MODE REQUIRED</h2>
+            <p class="orientation-text">HUSH is engineered for <b>Landscape Mode</b>.<br>Please rotate your phone sideways, or tap below to play directly.</p>
+            <button id="forceLandscapeBtn" class="menu-btn primary horror-btn orientation-btn">
+                <span class="btn-icon">📱</span>
+                <span class="btn-label">PLAY IN LANDSCAPE</span>
+            </button>
         </div>
     </div>
 
@@ -299,14 +303,14 @@
 
     <!-- Scripts (order matters) -->
     <script src="js/peerjs.min.js"></script>
-    <script src="js/constants.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/map.js"></script>
-    <script src="js/audio.js"></script>
-    <script src="js/entities.js"></script>
-    <script src="js/network.js"></script>
-    <script src="js/renderer.js"></script>
-    <script src="js/story.js"></script>
-    <script src="js/game.js"></script>
+    <script src="js/constants.js?v=3.0"></script>
+    <script src="js/utils.js?v=3.0"></script>
+    <script src="js/map.js?v=3.0"></script>
+    <script src="js/audio.js?v=3.0"></script>
+    <script src="js/entities.js?v=3.0"></script>
+    <script src="js/network.js?v=3.0"></script>
+    <script src="js/renderer.js?v=3.0"></script>
+    <script src="js/story.js?v=3.0"></script>
+    <script src="js/game.js?v=3.0"></script>
 </body>
 </html>

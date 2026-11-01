@@ -2125,41 +2125,42 @@ class Renderer {
     }
     
     // Draw the radar minimap (TOP LEFT CORNER)
+    // Draw the radar minimap (TOP LEFT CORNER) - High Precision Tactical Proximity Radar
     drawMinimap(map, player, listener) {
         if (!map || !map.tiles) return;
 
         const ctx = this.ctx;
-        const miniW = 160;
-        const miniH = 134; // 60x50 tiles scaled to 160x134
-        const miniX = 20;
-        const miniY = 20;
+        const isMobile = this.width < 760 || this.height < 520;
+        const miniW = isMobile ? 140 : 180;
+        const miniH = isMobile ? 112 : 140;
+        const miniX = isMobile ? 12 : 20;
+        const miniY = isMobile ? 12 : 20;
 
         ctx.save();
 
         // 1. Sleek Radar Frame
-        ctx.fillStyle = 'rgba(7, 10, 18, 0.88)';
-        this.drawRoundedRect(ctx, miniX, miniY, miniW, miniH + 24, 6, true, false);
+        ctx.fillStyle = 'rgba(7, 10, 18, 0.90)';
+        this.drawRoundedRect(ctx, miniX, miniY, miniW, miniH + 26, 6, true, false);
 
-        ctx.strokeStyle = 'rgba(65, 105, 160, 0.55)';
+        ctx.strokeStyle = 'rgba(65, 115, 180, 0.65)';
         ctx.lineWidth = 1.2;
-        this.drawRoundedRect(ctx, miniX, miniY, miniW, miniH + 24, 6, false, true);
+        this.drawRoundedRect(ctx, miniX, miniY, miniW, miniH + 26, 6, false, true);
 
         // Header bar
-        ctx.fillStyle = 'rgba(25, 45, 75, 0.65)';
+        ctx.fillStyle = 'rgba(20, 38, 64, 0.8)';
         ctx.fillRect(miniX, miniY, miniW, 20);
 
-        ctx.font = 'bold 9px monospace';
-        ctx.fillStyle = '#65b2f0';
+        ctx.font = isMobile ? 'bold 8px monospace' : 'bold 9px monospace';
+        ctx.fillStyle = '#65c2ff';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillText('◈ RADAR MAP [M]', miniX + 8, miniY + 10);
+        ctx.fillText('◈ PROXIMITY RADAR [M]', miniX + 6, miniY + 10);
 
         // Current sector / room indicator on right
         let curRoom = map.getRoom ? map.getRoom(player.x, player.y) : null;
         let roomName = curRoom ? curRoom.name.split(' ')[0] : 'TRANSIT';
-        ctx.textAlign = 'right';
-        ctx.fillStyle = '#9cb8db';
-        ctx.fillText(roomName.toUpperCase(), miniX + miniW - 8, miniY + 10);
+        const ptx = Math.floor(player.x / TILE_SIZE);
+        const pty = Math.floor(player.y / TILE_SIZE);
 
         // 2. Map Canvas Viewport (clipped to radar body)
         const mapAreaX = miniX + 4;
@@ -2173,37 +2174,46 @@ class Renderer {
         ctx.clip();
 
         // Background of map area
-        ctx.fillStyle = '#060911';
+        ctx.fillStyle = '#060a12';
         ctx.fillRect(mapAreaX, mapAreaY, mapAreaW, mapAreaH);
 
-        const scaleX = mapAreaW / map.width;
-        const scaleY = mapAreaH / map.height;
+        // Centered Proximity View: 34 tiles wide by 26 tiles high
+        const viewTilesX = 34;
+        const viewTilesY = 26;
+        const scaleX = mapAreaW / viewTilesX;
+        const scaleY = mapAreaH / viewTilesY;
 
-        // Render floor sectors
-        for (let ty = 0; ty < map.height; ty++) {
+        const startTileX = Math.floor(ptx - viewTilesX / 2);
+        const startTileY = Math.floor(pty - viewTilesY / 2);
+
+        // Render floor sectors in local viewport
+        for (let dy = 0; dy < viewTilesY; dy++) {
+            const ty = startTileY + dy;
+            if (ty < 0 || ty >= map.height) continue;
             const row = map.tiles[ty];
             if (!row) continue;
-            for (let tx = 0; tx < map.width; tx++) {
+
+            for (let dx = 0; dx < viewTilesX; dx++) {
+                const tx = startTileX + dx;
+                if (tx < 0 || tx >= map.width) continue;
                 const tile = row[tx];
-                if (tile === TILE.WALL) continue;
-
-                const bx = mapAreaX + tx * scaleX;
-                const by = mapAreaY + ty * scaleY;
-                const bw = Math.max(1, scaleX);
-                const bh = Math.max(1, scaleY);
-
-                if (tile === TILE.WATER) {
-                    ctx.fillStyle = 'rgba(25, 110, 195, 0.85)';
+                if (tile === TILE.WALL) {
+                    ctx.fillStyle = '#141c2e';
+                } else if (tile === TILE.WATER) {
+                    ctx.fillStyle = 'rgba(25, 110, 195, 0.9)';
                 } else if (tile === TILE.LOUD_FLOOR) {
-                    ctx.fillStyle = 'rgba(180, 105, 40, 0.85)';
+                    ctx.fillStyle = 'rgba(180, 105, 40, 0.9)';
                 } else if (tile === TILE.TUNNEL) {
-                    ctx.fillStyle = 'rgba(110, 65, 155, 0.85)';
+                    ctx.fillStyle = 'rgba(110, 65, 155, 0.9)';
                 } else if (tile === TILE.DOOR) {
-                    ctx.fillStyle = 'rgba(215, 150, 70, 0.95)';
+                    ctx.fillStyle = 'rgba(225, 160, 70, 0.95)';
                 } else {
-                    ctx.fillStyle = 'rgba(45, 65, 95, 0.8)';
+                    ctx.fillStyle = 'rgba(42, 60, 90, 0.85)';
                 }
-                ctx.fillRect(bx, by, bw, bh);
+
+                const bx = mapAreaX + dx * scaleX;
+                const by = mapAreaY + dy * scaleY;
+                ctx.fillRect(bx, by, Math.ceil(scaleX), Math.ceil(scaleY));
             }
         }
 
@@ -2211,44 +2221,63 @@ class Renderer {
         if (map.hidingSpots) {
             ctx.fillStyle = '#39e66c';
             for (const spot of map.hidingSpots) {
-                const hx = mapAreaX + (spot.x / TILE_SIZE) * scaleX;
-                const hy = mapAreaY + (spot.y / TILE_SIZE) * scaleY;
-                ctx.fillRect(hx - 1, hy - 1, 2, 2);
-            }
-        }
-
-        // Memory Stones on radar (pulsing amber diamond)
-        if (map.stones) {
-            const pulse = Math.sin(this.gameTime * 4) * 0.3 + 0.7;
-            for (const stone of map.stones) {
-                if (stone.collected) continue;
-                const sx = mapAreaX + (stone.x / TILE_SIZE) * scaleX;
-                const sy = mapAreaY + (stone.y / TILE_SIZE) * scaleY;
-
-                ctx.fillStyle = `rgba(255, 180, 50, ${pulse})`;
-                ctx.beginPath();
-                ctx.arc(sx, sy, 2.5, 0, Math.PI * 2);
-                ctx.fill();
+                const stx = spot.x / TILE_SIZE;
+                const sty = spot.y / TILE_SIZE;
+                if (stx >= startTileX && stx < startTileX + viewTilesX &&
+                    sty >= startTileY && sty < startTileY + viewTilesY) {
+                    const hx = mapAreaX + (stx - startTileX) * scaleX;
+                    const hy = mapAreaY + (sty - startTileY) * scaleY;
+                    ctx.fillRect(hx - 2, hy - 2, 4, 4);
+                }
             }
         }
 
         // Exit on radar
         if (map.exitPos) {
-            const ex = mapAreaX + (map.exitPos.x / TILE_SIZE) * scaleX;
-            const ey = mapAreaY + (map.exitPos.y / TILE_SIZE) * scaleY;
-            ctx.fillStyle = '#33ffaa';
-            ctx.fillRect(ex - 2, ey - 2, 4, 4);
+            const etx = map.exitPos.x / TILE_SIZE;
+            const ety = map.exitPos.y / TILE_SIZE;
+            if (etx >= startTileX && etx < startTileX + viewTilesX &&
+                ety >= startTileY && ety < startTileY + viewTilesY) {
+                const ex = mapAreaX + (etx - startTileX) * scaleX;
+                const ey = mapAreaY + (ety - startTileY) * scaleY;
+                ctx.fillStyle = '#33ffaa';
+                ctx.fillRect(ex - 3, ey - 3, 6, 6);
+            }
         }
 
-        // Banishment Relic on radar (pulsing cyan star)
+        // Banishment Relic on radar
         if (map.relic && !map.relic.collected) {
-            const rx = mapAreaX + (map.relic.x / TILE_SIZE) * scaleX;
-            const ry = mapAreaY + (map.relic.y / TILE_SIZE) * scaleY;
-            const rPulse = Math.sin(this.gameTime * 6) * 0.3 + 0.7;
-            ctx.fillStyle = `rgba(0, 255, 238, ${rPulse})`;
-            ctx.beginPath();
-            ctx.arc(rx, ry, 3.2, 0, Math.PI * 2);
-            ctx.fill();
+            const rtx = map.relic.x / TILE_SIZE;
+            const rty = map.relic.y / TILE_SIZE;
+            if (rtx >= startTileX && rtx < startTileX + viewTilesX &&
+                rty >= startTileY && rty < startTileY + viewTilesY) {
+                const rx = mapAreaX + (rtx - startTileX) * scaleX;
+                const ry = mapAreaY + (rty - startTileY) * scaleY;
+                const rPulse = Math.sin(this.gameTime * 6) * 0.3 + 0.7;
+                ctx.fillStyle = `rgba(0, 255, 238, ${rPulse})`;
+                ctx.beginPath();
+                ctx.arc(rx, ry, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Memory Stones on radar
+        if (map.stones) {
+            const pulse = Math.sin(this.gameTime * 4) * 0.3 + 0.7;
+            for (const stone of map.stones) {
+                if (stone.collected) continue;
+                const stx = stone.x / TILE_SIZE;
+                const sty = stone.y / TILE_SIZE;
+                if (stx >= startTileX && stx < startTileX + viewTilesX &&
+                    sty >= startTileY && sty < startTileY + viewTilesY) {
+                    const sx = mapAreaX + (stx - startTileX) * scaleX;
+                    const sy = mapAreaY + (sty - startTileY) * scaleY;
+                    ctx.fillStyle = `rgba(255, 180, 50, ${pulse})`;
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, 3.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
         }
 
         // Remote multiplayer friends on radar
@@ -2256,65 +2285,96 @@ class Renderer {
             const peerCols = COLORS.PEER_PLAYERS || ['#33ddaa', '#ffaa44', '#dd66ff'];
             for (const rp of Object.values(this.network.remotePlayers)) {
                 if (!rp.x && !rp.y) continue;
-                const rpx = mapAreaX + (rp.x / TILE_SIZE) * scaleX;
-                const rpy = mapAreaY + (rp.y / TILE_SIZE) * scaleY;
-                ctx.fillStyle = peerCols[(rp.colorIndex || 1) % peerCols.length];
-                ctx.beginPath();
-                ctx.arc(rpx, rpy, 2.5, 0, Math.PI * 2);
-                ctx.fill();
+                const rptx = rp.x / TILE_SIZE;
+                const rpty = rp.y / TILE_SIZE;
+                if (rptx >= startTileX && rptx < startTileX + viewTilesX &&
+                    rpty >= startTileY && rpty < startTileY + viewTilesY) {
+                    const rpx = mapAreaX + (rptx - startTileX) * scaleX;
+                    const rpy = mapAreaY + (rpty - startTileY) * scaleY;
+                    ctx.fillStyle = peerCols[(rp.colorIndex || 1) % peerCols.length];
+                    ctx.beginPath();
+                    ctx.arc(rpx, rpy, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
         }
 
-        // Player icon on radar with heading cone
-        const ptx = (player.x / TILE_SIZE) * scaleX;
-        const pty = (player.y / TILE_SIZE) * scaleY;
-        const px = mapAreaX + ptx;
-        const py = mapAreaY + pty;
+        // Player marker (always dead center of local proximity radar)
+        const px = mapAreaX + mapAreaW / 2;
+        const py = mapAreaY + mapAreaH / 2;
 
         // Flashlight field on radar
         if (player.flashlightOn) {
-            ctx.fillStyle = 'rgba(255, 245, 180, 0.3)';
+            ctx.fillStyle = 'rgba(255, 245, 180, 0.35)';
             ctx.beginPath();
             ctx.moveTo(px, py);
             const pAngle = player.flashlightAngle !== undefined ? player.flashlightAngle : player.angle;
-            ctx.arc(px, py, 14, pAngle - 0.5, pAngle + 0.5);
+            ctx.arc(px, py, 20, pAngle - 0.5, pAngle + 0.5);
             ctx.closePath();
             ctx.fill();
         }
 
-        // Player marker
-        ctx.fillStyle = '#55d0ff';
-        ctx.shadowColor = '#55d0ff';
-        ctx.shadowBlur = 4;
+        // Player icon
+        ctx.fillStyle = '#00ffee';
+        ctx.shadowColor = '#00ffee';
+        ctx.shadowBlur = 6;
         ctx.beginPath();
-        ctx.arc(px, py, 2.8, 0, Math.PI * 2);
+        ctx.arc(px, py, 3.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0;
 
-        // Listeners disturbance ping if within 320px
+        // Listeners disturbance ping if within 450px
         const miniGhostList = Array.isArray(listener) ? listener : (listener ? [listener] : []);
         for (const l of miniGhostList) {
-            if (l && !l.isDead && dist(player.x, player.y, l.x, l.y) < 320) {
-                const lx = mapAreaX + (l.x / TILE_SIZE) * scaleX;
-                const ly = mapAreaY + (l.y / TILE_SIZE) * scaleY;
-                const pingRadius = ((this.gameTime * 8) % 10) + 1;
-                ctx.strokeStyle = 'rgba(255, 40, 40, 0.7)';
-                ctx.lineWidth = 1;
+            if (l && !l.isDead && dist(player.x, player.y, l.x, l.y) < 450) {
+                const ltx = l.x / TILE_SIZE;
+                const lty = l.y / TILE_SIZE;
+                const lx = mapAreaX + (ltx - startTileX) * scaleX;
+                const ly = mapAreaY + (lty - startTileY) * scaleY;
+                const pingRadius = ((this.gameTime * 8) % 12) + 2;
+                ctx.strokeStyle = 'rgba(255, 40, 40, 0.8)';
+                ctx.lineWidth = 1.5;
                 ctx.beginPath();
                 ctx.arc(lx, ly, pingRadius, 0, Math.PI * 2);
                 ctx.stroke();
             }
         }
 
+        // Mini Facility Megastructure Overview Thumbnail (top-right of radar)
+        const thumbW = 28;
+        const thumbH = 22;
+        const thumbX = mapAreaX + mapAreaW - thumbW - 2;
+        const thumbY = mapAreaY + 2;
+        ctx.fillStyle = 'rgba(4, 7, 14, 0.85)';
+        ctx.fillRect(thumbX, thumbY, thumbW, thumbH);
+        ctx.strokeStyle = 'rgba(80, 130, 200, 0.5)';
+        ctx.lineWidth = 0.8;
+        ctx.strokeRect(thumbX, thumbY, thumbW, thumbH);
+
+        // Overview player pip
+        const ovPipX = thumbX + (ptx / map.width) * thumbW;
+        const ovPipY = thumbY + (pty / map.height) * thumbH;
+        ctx.fillStyle = '#00ffee';
+        ctx.fillRect(ovPipX - 1, ovPipY - 1, 2, 2);
+
         ctx.restore(); // restore clipping
+
+        // Footer Bar: Sector name and coordinates
+        ctx.fillStyle = 'rgba(10, 18, 30, 0.9)';
+        ctx.fillRect(miniX, miniY + miniH, miniW, 26);
+        ctx.font = isMobile ? 'bold 7.5px monospace' : 'bold 8.5px monospace';
+        ctx.fillStyle = '#8ec3ff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`SEC: ${roomName.toUpperCase()} [${ptx}, ${pty}] | 5X`, miniX + miniW / 2, miniY + miniH + 13);
 
         // Corner accents on radar
         ctx.strokeStyle = 'rgba(100, 160, 240, 0.7)';
         ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(miniX, miniY + 6); ctx.lineTo(miniX, miniY); ctx.lineTo(miniX + 6, miniY); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(miniX + miniW - 6, miniY); ctx.lineTo(miniX + miniW, miniY); ctx.lineTo(miniX + miniW, miniY + 6); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(miniX, miniY + miniH + 24 - 6); ctx.lineTo(miniX, miniY + miniH + 24); ctx.lineTo(miniX + 6, miniY + miniH + 24); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(miniX + miniW - 6, miniY + miniH + 24); ctx.lineTo(miniX + miniW, miniY + miniH + 24); ctx.lineTo(miniX + miniW, miniY + miniH + 24 - 6); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(miniX, miniY + miniH + 26 - 6); ctx.lineTo(miniX, miniY + miniH + 26); ctx.lineTo(miniX + 6, miniY + miniH + 26); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(miniX + miniW - 6, miniY + miniH + 26); ctx.lineTo(miniX + miniW, miniY + miniH + 26); ctx.lineTo(miniX + miniW, miniY + miniH + 26 - 6); ctx.stroke();
 
         ctx.restore();
     }
@@ -2327,7 +2387,7 @@ class Renderer {
         ctx.save();
 
         // 1. Full dark blueprint overlay
-        ctx.fillStyle = 'rgba(5, 8, 15, 0.94)';
+        ctx.fillStyle = 'rgba(5, 8, 15, 0.95)';
         ctx.fillRect(0, 0, this.width, this.height);
 
         // Blueprint architectural grid lines
@@ -2342,25 +2402,25 @@ class Renderer {
         }
 
         // Header Title
-        ctx.font = 'bold 22px Courier New, monospace';
+        ctx.font = 'bold 20px Courier New, monospace';
         ctx.fillStyle = '#65b2f0';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillText('FACILITY BLUEPRINT & SURVEILLANCE SCHEMATIC', this.width / 2, 28);
+        ctx.fillText('FACILITY MEGASTRUCTURE SCHEMATIC (5X EXPANDED • 170x140 TILES)', this.width / 2, 18);
 
-        ctx.font = '12px monospace';
+        ctx.font = '11px monospace';
         ctx.fillStyle = '#8ca3c7';
-        ctx.fillText('Press [M] or [ESC] to return to action', this.width / 2, 56);
+        ctx.fillText('3 PATROLLING LISTENERS • SQUAD GROUP ESCAPE MANDATORY • PRESS [M] TO CLOSE', this.width / 2, 44);
 
         // Center map box
-        const maxMapW = this.width * 0.78;
-        const maxMapH = this.height * 0.70;
+        const maxMapW = this.width * 0.82;
+        const maxMapH = this.height * 0.72;
         const scale = Math.min(maxMapW / map.width, maxMapH / map.height);
 
         const drawW = map.width * scale;
         const drawH = map.height * scale;
         const ox = (this.width - drawW) / 2;
-        const oy = 84 + (maxMapH - drawH) / 2;
+        const oy = 66 + (maxMapH - drawH) / 2;
 
         // Blueprint frame
         ctx.strokeStyle = 'rgba(80, 130, 190, 0.6)';
@@ -2400,45 +2460,68 @@ class Renderer {
 
         // Room Labels on blueprint
         if (map.rooms) {
-            ctx.font = 'bold 10px monospace';
+            ctx.font = 'bold 9px monospace';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             for (const r of map.rooms) {
                 const rcx = ox + (r.x + r.w / 2) * scale;
                 const rcy = oy + (r.y + r.h / 2) * scale;
 
-                ctx.fillStyle = 'rgba(7, 12, 22, 0.75)';
+                ctx.fillStyle = 'rgba(7, 12, 22, 0.8)';
                 const label = r.name.toUpperCase();
                 const tw = ctx.measureText(label).width;
-                ctx.fillRect(rcx - tw / 2 - 4, rcy - 8, tw + 8, 16);
+                ctx.fillRect(rcx - tw / 2 - 4, rcy - 7, tw + 8, 14);
 
-                ctx.strokeStyle = 'rgba(85, 140, 210, 0.4)';
+                ctx.strokeStyle = 'rgba(85, 140, 210, 0.45)';
                 ctx.lineWidth = 1;
-                ctx.strokeRect(rcx - tw / 2 - 4, rcy - 8, tw + 8, 16);
+                ctx.strokeRect(rcx - tw / 2 - 4, rcy - 7, tw + 8, 14);
 
                 ctx.fillStyle = '#c5dbf5';
                 ctx.fillText(label, rcx, rcy);
             }
         }
 
-        // Patrol Route ("The Short Way" - Red Dashed Line)
-        if (map.patrolPoints && map.patrolPoints.length > 1) {
-            ctx.save();
-            ctx.strokeStyle = 'rgba(255, 60, 60, 0.7)';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([4, 4]);
-            ctx.beginPath();
-            for (let i = 0; i < map.patrolPoints.length; i++) {
-                const pt = map.patrolPoints[i];
-                const px = ox + (pt.x / TILE_SIZE) * scale;
-                const py = oy + (pt.y / TILE_SIZE) * scale;
-                if (i === 0) ctx.moveTo(px, py);
-                else ctx.lineTo(px, py);
+        // All 3 Patrol Routes (Red Dashed Lines across wings)
+        const routes = map.listenerPatrolRoutes || (map.patrolPoints ? [map.patrolPoints] : []);
+        routes.forEach((route, rIdx) => {
+            if (route && route.length > 1) {
+                ctx.save();
+                ctx.strokeStyle = rIdx === 0 ? 'rgba(255, 60, 60, 0.8)' : (rIdx === 1 ? 'rgba(255, 140, 40, 0.8)' : 'rgba(220, 40, 100, 0.8)');
+                ctx.lineWidth = 1.8;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                for (let i = 0; i < route.length; i++) {
+                    const pt = route[i];
+                    const px = ox + (pt.x / TILE_SIZE) * scale;
+                    const py = oy + (pt.y / TILE_SIZE) * scale;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.stroke();
+                ctx.restore();
             }
-            ctx.closePath();
-            ctx.stroke();
-            ctx.restore();
-        }
+        });
+
+        // 3 Ghost Markers on blueprint
+        const allGhosts = Array.isArray(listener) ? listener : (listener ? [listener] : []);
+        allGhosts.forEach((g, gIdx) => {
+            if (g) {
+                const gx = ox + (g.x / TILE_SIZE) * scale;
+                const gy = oy + (g.y / TILE_SIZE) * scale;
+                ctx.fillStyle = g.isDead ? '#666666' : '#ff2222';
+                ctx.shadowColor = g.isDead ? '#000000' : '#ff2222';
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.arc(gx, gy, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                ctx.font = 'bold 8.5px monospace';
+                ctx.fillStyle = g.isDead ? '#888888' : '#ff4444';
+                ctx.fillText(g.isDead ? '☠ GHOST ' + (gIdx + 1) : `⚠ GHOST ${gIdx + 1}`, gx, gy - 9);
+            }
+        });
 
         // Hiding spots
         if (map.hidingSpots) {
@@ -2468,8 +2551,8 @@ class Renderer {
                     ctx.shadowBlur = 0;
 
                     ctx.fillStyle = '#ffffff';
-                    ctx.font = 'bold 9px monospace';
-                    ctx.fillText(`STONE ${st.id || (i + 1)}`, sx, sy - 10);
+                    ctx.font = 'bold 8.5px monospace';
+                    ctx.fillText(`STONE ${st.id || (i + 1)}`, sx, sy - 9);
                 } else {
                     ctx.strokeStyle = 'rgba(120, 120, 120, 0.6)';
                     ctx.lineWidth = 1.5;
@@ -2491,9 +2574,9 @@ class Renderer {
             ctx.fillRect(ex - 4, ey - 4, 8, 8);
             ctx.shadowBlur = 0;
 
-            ctx.font = 'bold 10px monospace';
+            ctx.font = 'bold 9px monospace';
             ctx.fillStyle = '#33ffaa';
-            ctx.fillText('EXIT PORTAL', ex, ey - 12);
+            ctx.fillText('EXIT BLAST DOORS', ex, ey - 11);
         }
 
         // Banishment Relic on blueprint
@@ -2504,13 +2587,13 @@ class Renderer {
             ctx.shadowColor = '#00ffee';
             ctx.shadowBlur = 10;
             ctx.beginPath();
-            ctx.arc(rx, ry, 6, 0, Math.PI * 2);
+            ctx.arc(rx, ry, 5.5, 0, Math.PI * 2);
             ctx.fill();
             ctx.shadowBlur = 0;
 
-            ctx.font = 'bold 9px monospace';
+            ctx.font = 'bold 8.5px monospace';
             ctx.fillStyle = '#00ffee';
-            ctx.fillText('✦ BANISHMENT RELIC', rx, ry - 11);
+            ctx.fillText('✦ BANISH RELIC', rx, ry - 10);
         }
 
         // Remote multiplayer friends on blueprint
@@ -2527,9 +2610,9 @@ class Renderer {
                 ctx.arc(rpx, rpy, 5, 0, Math.PI * 2);
                 ctx.fill();
 
-                ctx.font = 'bold 9px monospace';
+                ctx.font = 'bold 8.5px monospace';
                 ctx.fillStyle = pCol;
-                ctx.fillText(rp.name || 'Friend', rpx, rpy + 12);
+                ctx.fillText(rp.name || 'Friend', rpx, rpy + 11);
             }
         }
 
@@ -2555,17 +2638,17 @@ class Renderer {
             ctx.fill();
         }
 
-        ctx.font = 'bold 10px monospace';
+        ctx.font = 'bold 9.5px monospace';
         ctx.fillStyle = '#00e1ff';
-        ctx.fillText('YOU ARE HERE', ppx, ppy + 14);
+        ctx.fillText('YOU ARE HERE', ppx, ppy + 13);
 
         // Legend box on bottom
-        const legY = this.height - 36;
-        ctx.font = '10px monospace';
+        const legY = this.height - 24;
+        ctx.font = '9.5px monospace';
         ctx.textAlign = 'center';
         ctx.fillStyle = '#8ca3c7';
         ctx.fillText(
-            'LEGEND:  ● YOU (Cyan)  |  ● FRIENDS (Colors)  |  ✦ BANISH RELIC (Aqua)  |  ◆ STONES (Gold)  |  ■ HIDING SPOTS (Green)  |  --- THE SHORT WAY (Patrol)  |  ⚑ EXIT',
+            'LEGEND:  ● YOU (Cyan)  |  ⚠ 3 GHOSTS (Red)  |  ◆ 3 STONES (Gold)  |  ✦ BANISH RELIC (Aqua)  |  ■ LOCKERS (Green)  |  ⚑ EXIT DOORS',
             this.width / 2, legY
         );
 

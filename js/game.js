@@ -23,7 +23,10 @@ class Game {
             flashlight: false, throw: false,
             talk: false, // Push-to-talk / simulated voice
             mouseX: 0, mouseY: 0,
-            mouseWorldX: 0, mouseWorldY: 0
+            mouseWorldX: 0, mouseWorldY: 0,
+            hasMouseMoved: false,
+            aimWorldX: undefined,
+            aimWorldY: undefined
         };
         this.keysJustPressed = {};
         this.touchJoyActive = false;
@@ -175,6 +178,30 @@ class Game {
     }
 
     setupTouchControls() {
+        // 1. Force Landscape Button Handler
+        const forceBtn = document.getElementById('forceLandscapeBtn');
+        if (forceBtn) {
+            forceBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                document.body.classList.add('force-landscape');
+                document.body.classList.add('is-touch');
+                this.input.isTouch = true;
+                const overlay = document.getElementById('orientationOverlay');
+                if (overlay) overlay.style.display = 'none';
+                if (this.audio && this.audio.ctx && this.audio.ctx.state === 'suspended') {
+                    this.audio.ctx.resume().catch(() => {});
+                }
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen().catch(() => {});
+                }
+                if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape').catch(() => {});
+                }
+            });
+        }
+
+        // 2. Virtual Analog Joystick
         const joyBase = document.getElementById('joystickBase');
         const joyThumb = document.getElementById('joystickThumb');
         const joyZone = document.getElementById('joystickZone');
@@ -183,6 +210,10 @@ class Game {
             const maxRadius = 45; // Max thumb offset in pixels
 
             const handleJoyStart = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                document.body.classList.add('is-touch');
+                this.input.isTouch = true;
                 const touch = e.changedTouches[0];
                 if (!touch) return;
                 this.touchJoyActive = true;
@@ -203,6 +234,7 @@ class Game {
                     }
                 }
                 if (!touch) return;
+                e.preventDefault();
 
                 let dx = touch.clientX - this.touchJoyOriginX;
                 let dy = touch.clientY - this.touchJoyOriginY;
@@ -225,6 +257,7 @@ class Game {
             const handleJoyEnd = (e) => {
                 for (let i = 0; i < e.changedTouches.length; i++) {
                     if (e.changedTouches[i].identifier === this.touchJoyTouchId) {
+                        e.preventDefault();
                         this.touchJoyActive = false;
                         this.touchJoyTouchId = null;
                         this.input.moveX = 0;
@@ -241,13 +274,65 @@ class Game {
             window.addEventListener('touchcancel', handleJoyEnd, { passive: false });
         }
 
-        // Action Buttons bindings
+        // 3. Right-Screen Touch Aiming (Look / Flashlight Direction)
+        let aimTouchId = null;
+        const handleAimStart = (e) => {
+            if (this.state !== GAME_STATE.PLAYING) return;
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                if (t.clientX > window.innerWidth * 0.35) {
+                    if (e.target && e.target.closest && e.target.closest('.touch-btn')) continue;
+                    aimTouchId = t.identifier;
+                    document.body.classList.add('is-touch');
+                    this.input.isTouch = true;
+                    if (this.renderer) {
+                        this.input.aimWorldX = t.clientX + this.renderer.camX;
+                        this.input.aimWorldY = t.clientY + this.renderer.camY;
+                    }
+                    break;
+                }
+            }
+        };
+
+        const handleAimMove = (e) => {
+            if (aimTouchId === null) return;
+            for (let i = 0; i < e.touches.length; i++) {
+                const t = e.touches[i];
+                if (t.identifier === aimTouchId) {
+                    if (this.renderer) {
+                        this.input.aimWorldX = t.clientX + this.renderer.camX;
+                        this.input.aimWorldY = t.clientY + this.renderer.camY;
+                    }
+                    break;
+                }
+            }
+        };
+
+        const handleAimEnd = (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === aimTouchId) {
+                    aimTouchId = null;
+                    this.input.aimWorldX = undefined;
+                    this.input.aimWorldY = undefined;
+                    break;
+                }
+            }
+        };
+
+        window.addEventListener('touchstart', handleAimStart, { passive: true });
+        window.addEventListener('touchmove', handleAimMove, { passive: true });
+        window.addEventListener('touchend', handleAimEnd, { passive: true });
+        window.addEventListener('touchcancel', handleAimEnd, { passive: true });
+
+        // 4. Action Buttons bindings
         const bindTouchBtn = (id, onDown, onUp) => {
             const btn = document.getElementById(id);
             if (!btn) return;
             btn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                document.body.classList.add('is-touch');
+                this.input.isTouch = true;
                 btn.classList.add('active');
                 if (typeof onDown === 'function') onDown();
             }, { passive: false });
@@ -589,6 +674,7 @@ class Game {
     }
 
     onMouseMove(e) {
+        this.input.hasMouseMoved = true;
         this.input.mouseX = e.clientX;
         this.input.mouseY = e.clientY;
         if (this.renderer) {

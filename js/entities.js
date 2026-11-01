@@ -139,13 +139,20 @@ class Player {
         const safeInput = input || {};
         const safeDt = Math.min(dt || 0.016, 0.1);
         
-        // 1. Mouse Aiming & Flashlight Direction
-        const targetX = (typeof safeInput.mouseWorldX === 'number') ? safeInput.mouseWorldX : safeInput.mouseX;
-        const targetY = (typeof safeInput.mouseWorldY === 'number') ? safeInput.mouseWorldY : safeInput.mouseY;
-        if (typeof targetX === 'number' && typeof targetY === 'number' &&
-            !isNaN(targetX) && !isNaN(targetY)) {
-            this.angle = angleToward(this.x, this.y, targetX, targetY);
+        // 1. Mouse / Touch Aiming & Flashlight Direction
+        if (safeInput.aimWorldX !== undefined && safeInput.aimWorldY !== undefined) {
+            // Explicit touch aim
+            this.angle = angleToward(this.x, this.y, safeInput.aimWorldX, safeInput.aimWorldY);
             this.flashlightAngle = this.angle;
+        } else if (!safeInput.isTouch && safeInput.hasMouseMoved) {
+            // Mouse aiming (only when mouse has actually moved, never force (0,0))
+            const targetX = (typeof safeInput.mouseWorldX === 'number') ? safeInput.mouseWorldX : safeInput.mouseX;
+            const targetY = (typeof safeInput.mouseWorldY === 'number') ? safeInput.mouseWorldY : safeInput.mouseY;
+            if (typeof targetX === 'number' && typeof targetY === 'number' &&
+                !isNaN(targetX) && !isNaN(targetY)) {
+                this.angle = angleToward(this.x, this.y, targetX, targetY);
+                this.flashlightAngle = this.angle;
+            }
         }
         
         // 2. Flashlight Toggle & Battery Drain
@@ -232,8 +239,8 @@ class Player {
                 dx /= mag;
                 dy /= mag;
             }
-            // If on touch or no mouse target, rotate facing toward joystick vector
-            if (safeInput.isTouch || (typeof targetX !== 'number' || isNaN(targetX))) {
+            // If on touch and not aiming manually, rotate facing toward joystick vector
+            if (safeInput.isTouch && safeInput.aimWorldX === undefined) {
                 this.angle = Math.atan2(dy, dx);
                 this.flashlightAngle = this.angle;
             }

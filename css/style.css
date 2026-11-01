@@ -1000,12 +1000,27 @@ input[type="text"] {
     color: #00ffee;
 }
 
+/* Force landscape mode override if user tapped button */
+body.force-landscape .orientation-overlay {
+    display: none !important;
+}
+body.force-landscape .mobile-controls.visible {
+    display: block !important;
+}
+
+.orientation-btn {
+    margin-top: 0.8rem;
+    padding: 0.65rem 1.4rem;
+    font-size: 0.85rem;
+    letter-spacing: 0.1rem;
+}
+
 /* Enforce Landscape Mode when Device is in Portrait */
 @media screen and (orientation: portrait) and (max-width: 1024px) {
-    .orientation-overlay {
+    body:not(.force-landscape) .orientation-overlay {
         display: flex !important;
     }
-    .mobile-controls {
+    body:not(.force-landscape) .mobile-controls {
         display: none !important;
     }
 }
@@ -1037,6 +1052,9 @@ input[type="text"] {
     .mobile-controls.visible {
         display: block;
     }
+}
+body.is-touch .mobile-controls.visible {
+    display: block !important;
 }
 
 /* Left Thumb Virtual Joystick */
